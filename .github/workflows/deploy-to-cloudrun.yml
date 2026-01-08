@@ -4,14 +4,14 @@ on:
   push:
     branches:
       - main
-      - develop
+      - dev
 
 permissions:
   contents: read
   id-token: write
 
 env:
-  REPO_NAME: ponti-backend-develop
+  REPO_NAME: backend-dev
   IMAGE_NAME: ponti-api
   REGION: us-central1
 
