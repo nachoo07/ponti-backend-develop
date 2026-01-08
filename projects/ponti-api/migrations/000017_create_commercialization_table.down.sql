@@ -1,0 +1,1 @@
+DROP TABLE crop_commercializations;

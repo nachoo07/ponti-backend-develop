@@ -1,0 +1,18 @@
+{
+    "folders": [
+        {
+            "path": ".."
+        }
+    ],
+    "settings": {
+        // Explorador de archivos
+        "explorer.autoReveal": true,
+        "explorer.compactFolders": false,
+        "explorer.confirmDragAndDrop": false,
+        "explorer.enableDragAndDrop": false,
+        "explorer.confirmDelete": true,
+
+        // Workbench
+        "workbench.colorTheme": "Carbonight Contrast (rainglow)"
+    }
+}

@@ -1,0 +1,2 @@
+-- Placeholder migration file for version 41
+-- This file is required to satisfy the migration system

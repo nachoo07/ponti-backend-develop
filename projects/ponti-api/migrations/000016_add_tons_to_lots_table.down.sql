@@ -1,0 +1,2 @@
+ALTER TABLE lots
+DROP COLUMN tons;

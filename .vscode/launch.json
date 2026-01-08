@@ -1,0 +1,33 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Ponti API (Docker)",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/projects/ponti-api/cmd/api/",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Debug Ponti API (mix-dev, postgres)",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/projects/ponti-api/cmd/api/",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/projects/ponti-api/.env",
+      "env": {
+        "DEPLOY_PROJECT_ROOT": ".",
+        "DB_HOST": "localhost",
+        "DB_PORT": "5432",
+        "DB_USER": "postgres",
+        "DB_PASSWORD": "postgres",
+        "DB_NAME": "notifications_bot_db"
+      },
+      "args": [],
+      "showLog": true,
+      "trace": "verbose"
+    }
+  ]
+}

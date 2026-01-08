@@ -1,0 +1,1 @@
+DELETE FROM types WHERE name IN ('Semilla', 'Agroquímicos', 'Fertilizantes', 'Labores');
