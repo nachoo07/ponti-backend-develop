@@ -6,7 +6,7 @@ on:
       - main
       - dev  # Tu rama actual
 
-  env:
+env:
   SERVICE_NAME: ponti-api-dev # Le puse -dev para que coincida con tus logs anteriores
   REGION: us-central1
   REPO_NAME: backend-dev
