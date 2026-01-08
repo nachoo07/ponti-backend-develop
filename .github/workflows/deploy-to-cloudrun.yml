@@ -108,17 +108,27 @@ jobs:
           
           kill $PROXY_PID
 
-      # 5. DESPLIEGUE (Backend - Rama dev - CORREGIDO)
+      # 5. DESPLIEGUE (Backend - Rama dev - ARREGLO DEFINITIVO)
       - name: Deploy to Cloud Run
         run: |
           echo "🚀 Deploying to Cloud Run..."
-                    echo "🚀 Deploying to Cloud Run..."
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --image=${{ steps.build.outputs.image }} \
             --region=${{ env.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
             --add-cloudsql-instances=${{ env.DB_INSTANCE }} \
-            --set-env-vars="DEPLOY_PLATFORM=gcp,DEPLOY_ENV=dev,HTTP_SERVER_PORT=8080,DB_TYPE=postgres,DB_USER=${{ env.DB_USER }},DB_PASSWORD=${{ env.DB_PASS }},DB_NAME=${{ env.DB_NAME }},INSTANCE_CONNECTION_NAME=${{ env.DB_INSTANCE }},DB_HOST=/cloudsql/${{ env.DB_INSTANCE }},DB_PORT=5432,DB_SSL_MODE=disable,GIN_MODE=${{ env.GIN_MODE }},API_VERSION=v1,X_API_KEY=f9eac0c8d3dbc828c9d8730446d902483917c465fa07889d87dc66934cc9b9cb,REDIS_ADDRESS=127.0.0.1:6379,REDIS_PASSWORD=,REDIS_DB=0" \
+            --set-env-vars="DEPLOY_PLATFORM=gcp,DEPLOY_ENV=dev,GIN_MODE=${{ env.GIN_MODE }},HTTP_SERVER_PORT=8080,\
+            DB_TYPE=postgres,\
+            DB_HOST=/cloudsql/${{ env.DB_INSTANCE }},\
+            DB_PORT=5432,\
+            DB_NAME=${{ env.DB_NAME }},\
+            DB_USER=${{ env.DB_USER }},\
+            DB_PASSWORD=${{ env.DB_PASS }},\
+            DB_SSL_MODE=disable,\
+            INSTANCE_CONNECTION_NAME=${{ env.DB_INSTANCE }},\
+            API_VERSION=v1,\
+            X_API_KEY=f9eac0c8d3dbc828c9d8730446d902483917c465fa07889d87dc66934cc9b9cb,\
+            REDIS_ADDRESS=127.0.0.1:6379,REDIS_PASSWORD=,REDIS_DB=0" \
             --quiet
 
