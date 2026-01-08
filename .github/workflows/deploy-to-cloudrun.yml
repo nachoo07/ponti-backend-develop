@@ -1,134 +1,90 @@
-name: Backend CI/CD Pipeline
+name: Deploy Backend to Cloud Run
 
 on:
   push:
     branches:
       - main
-      - dev
-
-permissions:
-  contents: read
-  id-token: write
+      - dev  # Tu rama actual
 
 env:
-  REPO_NAME: backend-dev
-  IMAGE_NAME: ponti-api
+  SERVICE_NAME: ponti-api
   REGION: us-central1
+  REPO_NAME: backend-repo # El nombre que pusiste en Artifact Registry
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # 1. DETECTAR AMBIENTE
-      - name: Set Environment Config
-        run: |
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "AUTH_METHOD=wif" >> $GITHUB_ENV
-            echo "GCP_PROJECT=${{ secrets.PROD_GCP_PROJECT_ID }}" >> $GITHUB_ENV
-            # Prod Auth
-            echo "WIF_PROVIDER=${{ secrets.PROD_WIF_PROVIDER }}" >> $GITHUB_ENV
-            echo "SERVICE_ACCOUNT=${{ secrets.PROD_SERVICE_ACCOUNT }}" >> $GITHUB_ENV
-            # Prod DB
-            echo "DB_INSTANCE=${{ secrets.PROD_INSTANCE_CONNECTION_NAME }}" >> $GITHUB_ENV
-            echo "DB_USER=${{ secrets.PROD_DB_USER }}" >> $GITHUB_ENV
-            echo "DB_PASS=${{ secrets.PROD_DB_PASSWORD }}" >> $GITHUB_ENV
-            echo "DB_NAME=${{ secrets.PROD_DB_NAME }}" >> $GITHUB_ENV
-            # Service Name
-            echo "SERVICE_NAME=ponti-api-prod" >> $GITHUB_ENV
-            echo "GIN_MODE=release" >> $GITHUB_ENV
-          else
-            echo "AUTH_METHOD=json" >> $GITHUB_ENV
-            echo "GCP_PROJECT=${{ secrets.DEV_GCP_PROJECT_ID }}" >> $GITHUB_ENV
-            # Dev DB (Las que creaste en el Paso 2)
-            echo "DB_INSTANCE=${{ secrets.DEV_INSTANCE_CONNECTION_NAME }}" >> $GITHUB_ENV
-            echo "DB_USER=${{ secrets.DEV_DB_USER }}" >> $GITHUB_ENV
-            echo "DB_PASS=${{ secrets.DEV_DB_PASSWORD }}" >> $GITHUB_ENV
-            echo "DB_NAME=${{ secrets.DEV_DB_NAME }}" >> $GITHUB_ENV
-            # Service Name
-            echo "SERVICE_NAME=ponti-api-dev" >> $GITHUB_ENV
-            echo "GIN_MODE=debug" >> $GITHUB_ENV
-          fi
-
-      # 2. AUTENTICACIÓN
-      - name: Authenticate (Prod - WIF)
-        if: env.AUTH_METHOD == 'wif'
+      # 1. Autenticación con Google
+      - name: Google Auth
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ env.WIF_PROVIDER }}
-          service_account: ${{ env.SERVICE_ACCOUNT }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Authenticate (Dev - JSON)
-        if: env.AUTH_METHOD == 'json'
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.DEV_GCP_SA_KEY }}
-
-      # 3. SETUP Y BUILD
+      # 2. Setup Cloud SDK
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
         with:
-          project_id: ${{ env.GCP_PROJECT }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
 
+      # 3. Configurar Docker
       - name: Configure Docker
-        run: gcloud auth configure-docker us-central1-docker.pkg.dev
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
+      # 4. Construir y Subir Imagen
       - name: Build and Push
         id: build
         run: |
-          TAG="${{ github.sha }}"
-          IMAGE="us-central1-docker.pkg.dev/${{ env.GCP_PROJECT }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:$TAG"
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
           docker build -t $IMAGE .
           docker push $IMAGE
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
 
-      # 4. MIGRACIONES (Base de Datos)
-      - name: Run Database Migrations
+      # 5. Migraciones (Opcional pero recomendado para verificar conexión DB)
+      - name: Run Migrations
         run: |
-          echo "🔄 Running migrations..."
-          
-          # Descargar Proxy y Migrate
           wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 -O cloud_sql_proxy
           chmod +x cloud_sql_proxy
+          ./cloud_sql_proxy -instances=${{ secrets.DB_INSTANCE_NAME }}=tcp:5432 &
+          PID=$!
+          sleep 5
+          
           curl -L https://github.com/golang-migrate/migrate/releases/download/v4.17.1/migrate.linux-amd64.tar.gz | tar xvz
           sudo mv migrate /usr/local/bin/migrate
-
-          # Iniciar Proxy con la instancia detectada (Prod o Dev)
-          ./cloud_sql_proxy -instances=${{ env.DB_INSTANCE }}=tcp:5432 &
-          PROXY_PID=$!
-          sleep 5
-
-          # Ejecutar migración
-          # IMPORTANTE: Asegúrate de que la ruta 'projects/ponti-api' sea correcta o quítala si el Dockerfile está en la raíz
-          migrate -path projects/ponti-api/migrations \
-            -database "postgres://${{ env.DB_USER }}:${{ env.DB_PASS }}@127.0.0.1:5432/${{ env.DB_NAME }}?sslmode=disable" \
-            up
           
-          kill $PROXY_PID
+          # Ajusta la ruta 'projects/ponti-api/migrations' si es distinta
+          migrate -path projects/ponti-api/migrations -database "postgres://postgres:${{ secrets.DB_PASSWORD }}@127.0.0.1:5432/${{ secrets.DB_NAME }}?sslmode=disable" up
+          
+          kill $PID
 
-      # 5. DESPLIEGUE (Backend - Rama dev - ARREGLO DEFINITIVO)
+      # 6. Despliegue a Cloud Run (EL PASO CRÍTICO)
       - name: Deploy to Cloud Run
         run: |
-          echo "🚀 Deploying to Cloud Run..."
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --image=${{ steps.build.outputs.image }} \
             --region=${{ env.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
-            --add-cloudsql-instances=${{ env.DB_INSTANCE }} \
-            --set-env-vars="DEPLOY_PLATFORM=gcp,DEPLOY_ENV=dev,GIN_MODE=${{ env.GIN_MODE }},HTTP_SERVER_PORT=8080,\
-            DB_TYPE=postgres,\
-            DB_HOST=/cloudsql/${{ env.DB_INSTANCE }},\
-            DB_PORT=5432,\
-            DB_NAME=${{ env.DB_NAME }},\
-            DB_USER=${{ env.DB_USER }},\
-            DB_PASSWORD=${{ env.DB_PASS }},\
-            DB_SSL_MODE=disable,\
-            INSTANCE_CONNECTION_NAME=${{ env.DB_INSTANCE }},\
-            API_VERSION=v1,\
-            X_API_KEY=f9eac0c8d3dbc828c9d8730446d902483917c465fa07889d87dc66934cc9b9cb,\
-            REDIS_ADDRESS=127.0.0.1:6379,REDIS_PASSWORD=,REDIS_DB=0" \
+            --add-cloudsql-instances=${{ secrets.DB_INSTANCE_NAME }} \
+            --set-env-vars="\
+              DEPLOY_PLATFORM=gcp,\
+              DEPLOY_ENV=dev,\
+              GIN_MODE=debug,\
+              HTTP_SERVER_PORT=8080,\
+              DB_TYPE=postgres,\
+              DB_HOST=/cloudsql/${{ secrets.DB_INSTANCE_NAME }},\
+              DB_PORT=5432,\
+              DB_NAME=${{ secrets.DB_NAME }},\
+              DB_USER=postgres,\
+              DB_PASSWORD=${{ secrets.DB_PASSWORD }},\
+              DB_SSL_MODE=disable,\
+              INSTANCE_CONNECTION_NAME=${{ secrets.DB_INSTANCE_NAME }},\
+              API_VERSION=v1,\
+              X_API_KEY=123456,\
+              REDIS_ADDRESS=127.0.0.1:6379,\
+              REDIS_PASSWORD=,\
+              REDIS_DB=0" \
             --quiet
-
