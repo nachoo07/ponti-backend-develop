@@ -6,16 +6,19 @@ import (
 )
 
 func Bootstrap(address, password string, dbName int) (Cache, error) {
+	// 1. Intentamos leer la variable de entorno si no viene por parámetro
 	if address == "" {
 		address = os.Getenv("REDIS_ADDRESS")
 	}
 
-	// ✅ NUEVO BLOQUE: Si la dirección sigue vacía, devolvemos 'nil' sin error.
-	// Esto permite que la app arranque sin Redis.
+	// 🚨 EL ARREGLO ESTÁ AQUÍ 🚨
+	// Si después de intentar leer la variable, la dirección sigue vacía,
+	// significa que en este entorno NO queremos usar Redis.
+	// Devolvemos 'nil' (sin caché) y 'nil' (sin error).
 	if address == "" {
 		return nil, nil
 	}
-	// ---------------------------------------------------------
+	// ---------------------------
 
 	if password == "" {
 		password = os.Getenv("REDIS_PASSWORD")
@@ -30,6 +33,7 @@ func Bootstrap(address, password string, dbName int) (Cache, error) {
 		dbName,
 	)
 
+	// Validamos la configuración solo si realmente vamos a usar Redis
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
