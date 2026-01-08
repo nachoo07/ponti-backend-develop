@@ -1,24 +1,25 @@
 package pkgredis
 
 import (
+	"fmt" // <--- No olvides importar esto
 	"os"
 	"strconv"
 )
 
 func Bootstrap(address, password string, dbName int) (Cache, error) {
-	// 1. Intentamos leer la variable de entorno si no viene por parámetro
+	fmt.Println("🔎 [DEBUG] Iniciando Bootstrap de Redis...") 
+
 	if address == "" {
 		address = os.Getenv("REDIS_ADDRESS")
 	}
 
-	// 🚨 EL ARREGLO ESTÁ AQUÍ 🚨
-	// Si después de intentar leer la variable, la dirección sigue vacía,
-	// significa que en este entorno NO queremos usar Redis.
-	// Devolvemos 'nil' (sin caché) y 'nil' (sin error).
+	// Tu parche actual
 	if address == "" {
+		fmt.Println("⚠️ [DEBUG] Redis Address vacía. Retornando NIL (Modo Sin Caché).") 
 		return nil, nil
 	}
-	// ---------------------------
+
+	fmt.Println("🚀 [DEBUG] Configurando Redis con dirección: " + address)
 
 	if password == "" {
 		password = os.Getenv("REDIS_PASSWORD")
@@ -27,14 +28,10 @@ func Bootstrap(address, password string, dbName int) (Cache, error) {
 		dbName, _ = strconv.Atoi(os.Getenv("REDIS_DB"))
 	}
 
-	config := newConfig(
-		address,
-		password,
-		dbName,
-	)
+	config := newConfig(address, password, dbName)
 
-	// Validamos la configuración solo si realmente vamos a usar Redis
 	if err := config.Validate(); err != nil {
+		fmt.Printf("❌ [DEBUG] Error validando Redis: %v\n", err)
 		return nil, err
 	}
 

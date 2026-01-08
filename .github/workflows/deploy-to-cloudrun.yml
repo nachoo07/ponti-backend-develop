@@ -72,6 +72,9 @@ jobs:
             --set-env-vars="\
               DEPLOY_PLATFORM=gcp,\
               DEPLOY_ENV=dev,\
+              GO_ENVIRONMENT=development,\
+              APP_ENV=development,\
+              REPORT_SCHEMA=ponti_reports,\
               GIN_MODE=debug,\
               HTTP_SERVER_PORT=8080,\
               DB_TYPE=postgres,\
