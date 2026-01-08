@@ -10,11 +10,13 @@ func Bootstrap(address, password string, dbName int) (Cache, error) {
 		address = os.Getenv("REDIS_ADDRESS")
 	}
 
-	// --- AGREGAR ESTO ---
-    // Si sigue vacía, asumimos que no queremos Redis y devolvemos "nada" pero SIN error.
-    if address == "" {
-        return nil, nil
-    }
+	// ✅ NUEVO BLOQUE: Si la dirección sigue vacía, devolvemos 'nil' sin error.
+	// Esto permite que la app arranque sin Redis.
+	if address == "" {
+		return nil, nil
+	}
+	// ---------------------------------------------------------
+
 	if password == "" {
 		password = os.Getenv("REDIS_PASSWORD")
 	}
