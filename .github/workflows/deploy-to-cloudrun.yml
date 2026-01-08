@@ -1,116 +1,120 @@
-name: Build, Push to Artifact Registry, and Deploy to Cloud Run
+name: Backend CI/CD Pipeline
 
 on:
   push:
     branches:
+      - main
       - develop
 
-env:
-  GCP_PROJECT_ID: ponti-474821
-  GCP_REGION: us-central1   
-  REPOSITORY_NAME: ponti-api-registry
-  SERVICE_NAME: ponti-api
-  IMAGE_NAME: ponti-api
-  WORKLOAD_IDENTITY_PROVIDER: 'projects/1056876389857/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
-  SERVICE_ACCOUNT: 'github-actions@ponti-474821.iam.gserviceaccount.com'
-
-# Permisos necesarios para OIDC
 permissions:
   contents: read
   id-token: write
 
+env:
+  REPO_NAME: backend-api-repo
+  IMAGE_NAME: ponti-api
+  REGION: us-central1
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Autenticación usando Workload Identity Federation (sin keys JSON)
-      - name: Authenticate to Google Cloud
-        id: auth
+      # 1. DETECTAR AMBIENTE
+      - name: Set Environment Config
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "AUTH_METHOD=wif" >> $GITHUB_ENV
+            echo "GCP_PROJECT=${{ secrets.PROD_GCP_PROJECT_ID }}" >> $GITHUB_ENV
+            # Prod Auth
+            echo "WIF_PROVIDER=${{ secrets.PROD_WIF_PROVIDER }}" >> $GITHUB_ENV
+            echo "SERVICE_ACCOUNT=${{ secrets.PROD_SERVICE_ACCOUNT }}" >> $GITHUB_ENV
+            # Prod DB
+            echo "DB_INSTANCE=${{ secrets.PROD_INSTANCE_CONNECTION_NAME }}" >> $GITHUB_ENV
+            echo "DB_USER=${{ secrets.PROD_DB_USER }}" >> $GITHUB_ENV
+            echo "DB_PASS=${{ secrets.PROD_DB_PASSWORD }}" >> $GITHUB_ENV
+            echo "DB_NAME=${{ secrets.PROD_DB_NAME }}" >> $GITHUB_ENV
+            # Service Name
+            echo "SERVICE_NAME=ponti-api-prod" >> $GITHUB_ENV
+            echo "GIN_MODE=release" >> $GITHUB_ENV
+          else
+            echo "AUTH_METHOD=json" >> $GITHUB_ENV
+            echo "GCP_PROJECT=${{ secrets.DEV_GCP_PROJECT_ID }}" >> $GITHUB_ENV
+            # Dev DB (Las que creaste en el Paso 2)
+            echo "DB_INSTANCE=${{ secrets.DEV_INSTANCE_CONNECTION_NAME }}" >> $GITHUB_ENV
+            echo "DB_USER=${{ secrets.DEV_DB_USER }}" >> $GITHUB_ENV
+            echo "DB_PASS=${{ secrets.DEV_DB_PASSWORD }}" >> $GITHUB_ENV
+            echo "DB_NAME=${{ secrets.DEV_DB_NAME }}" >> $GITHUB_ENV
+            # Service Name
+            echo "SERVICE_NAME=ponti-api-dev" >> $GITHUB_ENV
+            echo "GIN_MODE=debug" >> $GITHUB_ENV
+          fi
+
+      # 2. AUTENTICACIÓN
+      - name: Authenticate (Prod - WIF)
+        if: env.AUTH_METHOD == 'wif'
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
           service_account: ${{ env.SERVICE_ACCOUNT }}
 
+      - name: Authenticate (Dev - JSON)
+        if: env.AUTH_METHOD == 'json'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.DEV_GCP_SA_KEY }}
+
+      # 3. SETUP Y BUILD
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
         with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
+          project_id: ${{ env.GCP_PROJECT }}
 
-      - name: Configure Docker for Artifact Registry
+      - name: Configure Docker
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      - name: Build and Push
+        id: build
         run: |
-          gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
+          TAG="${{ github.sha }}"
+          IMAGE="us-central1-docker.pkg.dev/${{ env.GCP_PROJECT }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:$TAG"
+          docker build -t $IMAGE .
+          docker push $IMAGE
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
 
-      - name: Build, tag, and push image to Artifact Registry
-        id: build-image
-        run: |
-          IMAGE_TAG=${GITHUB_SHA::7}
-          
-          FULL_IMAGE_NAME=${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG
-          
-          echo "🏗️ Building image: $FULL_IMAGE_NAME"
-          docker build -t $FULL_IMAGE_NAME .
-          
-          echo "📤 Pushing image to Artifact Registry..."
-          docker push $FULL_IMAGE_NAME
-          
-          echo "image=$FULL_IMAGE_NAME" >> $GITHUB_OUTPUT
-          echo "✅ Image pushed successfully"
-
+      # 4. MIGRACIONES (Base de Datos)
       - name: Run Database Migrations
         run: |
-          echo "🔄 Running database migrations..."
+          echo "🔄 Running migrations..."
           
-          # Instalar Cloud SQL Proxy
+          # Descargar Proxy y Migrate
           wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 -O cloud_sql_proxy
           chmod +x cloud_sql_proxy
-          
-          # Iniciar Cloud SQL Proxy en background
-          ./cloud_sql_proxy -instances=${{ secrets.INSTANCE_CONNECTION_NAME }}=tcp:5432 &
-          PROXY_PID=$!
-          
-          # Esperar a que el proxy esté listo
-          sleep 5
-          
-          # Instalar golang-migrate
           curl -L https://github.com/golang-migrate/migrate/releases/download/v4.17.1/migrate.linux-amd64.tar.gz | tar xvz
           sudo mv migrate /usr/local/bin/migrate
-          
-          # Ejecutar migraciones
-          cd projects/ponti-api
+
+          # Iniciar Proxy con la instancia detectada (Prod o Dev)
+          ./cloud_sql_proxy -instances=${{ env.DB_INSTANCE }}=tcp:5432 &
+          PROXY_PID=$!
+          sleep 5
+
+          # Ejecutar migración
+          # IMPORTANTE: Asegúrate de que la ruta 'projects/ponti-api' sea correcta o quítala si el Dockerfile está en la raíz
           migrate -path migrations \
-            -database "postgres://${{ secrets.DB_USER }}:${{ secrets.DB_PASSWORD }}@127.0.0.1:5432/${{ secrets.DB_NAME }}?sslmode=disable" \
+            -database "postgres://${{ env.DB_USER }}:${{ env.DB_PASS }}@127.0.0.1:5432/${{ env.DB_NAME }}?sslmode=disable" \
             up
           
-          # Detener Cloud SQL Proxy
           kill $PROXY_PID
-          
-          echo "✅ Migrations completed"
 
+      # 5. DESPLIEGUE
       - name: Deploy to Cloud Run
         run: |
-          echo "🚀 Deploying to Cloud Run..."
           gcloud run deploy ${{ env.SERVICE_NAME }} \
-            --image=${{ steps.build-image.outputs.image }} \
+            --image=${{ steps.build.outputs.image }} \
+            --region=${{ env.REGION }} \
             --platform=managed \
-            --region=${{ env.GCP_REGION }} \
             --allow-unauthenticated \
-            --memory=512Mi \
-            --cpu=1 \
-            --max-instances=10 \
-            --timeout=300s \
-            --set-env-vars="DEPLOY_PLATFORM=gcp,DEPLOY_ENV=prod,GO_ENVIRONMENT=beta,APP_NAME=ponti-api,APP_VERSION=1.0,APP_ENV=beta,HTTP_SERVER_PORT=8080,DB_TYPE=postgres,GIN_MODE=release,API_VERSION=v1,X_API_KEY=f9eac0c8d3dbc828c9d8730446d902483917c465fa07889d87dc66934cc9b9cb,DB_HOST=34.133.49.164,DB_PORT=5432,DB_NAME=${{ secrets.DB_NAME }},DB_USER=${{ secrets.DB_USER }},DB_PASSWORD=${{ secrets.DB_PASSWORD }},DB_SSL_MODE=disable" \
+            --set-env-vars="DB_USER=${{ env.DB_USER }},DB_PASSWORD=${{ env.DB_PASS }},DB_NAME=${{ env.DB_NAME }},INSTANCE_CONNECTION_NAME=${{ env.DB_INSTANCE }},GIN_MODE=${{ env.GIN_MODE }}" \
             --quiet
-          
-          echo "✅ Deployment completed"
-
-      - name: Get Service URL
-        run: |
-          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
-            --region=${{ env.GCP_REGION }} \
-            --format='value(status.url)')
-          echo "🌐 Service URL: $SERVICE_URL"
-          echo "SERVICE_URL=$SERVICE_URL" >> $GITHUB_ENV
