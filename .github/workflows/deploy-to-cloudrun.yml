@@ -6,10 +6,10 @@ on:
       - main
       - dev  # Tu rama actual
 
-env:
-  SERVICE_NAME: ponti-api
+  env:
+  SERVICE_NAME: ponti-api-dev # Le puse -dev para que coincida con tus logs anteriores
   REGION: us-central1
-  REPO_NAME: backend-repo # El nombre que pusiste en Artifact Registry
+  REPO_NAME: backend-dev
 
 jobs:
   deploy:
