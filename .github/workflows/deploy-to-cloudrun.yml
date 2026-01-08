@@ -108,15 +108,16 @@ jobs:
           
           kill $PROXY_PID
 
-      # 5. DESPLIEGUE (CORREGIDO)
+      # 5. DESPLIEGUE (Backend - Rama dev)
       - name: Deploy to Cloud Run
         run: |
+          echo "🚀 Deploying to Cloud Run..."
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --image=${{ steps.build.outputs.image }} \
             --region=${{ env.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
             --add-cloudsql-instances=${{ env.DB_INSTANCE }} \
-            --set-env-vars="DB_USER=${{ env.DB_USER }},DB_PASSWORD=${{ env.DB_PASS }},DB_NAME=${{ env.DB_NAME }},INSTANCE_CONNECTION_NAME=${{ env.DB_INSTANCE }},DB_HOST=/cloudsql/${{ env.DB_INSTANCE }},GIN_MODE=${{ env.GIN_MODE }}" \
+            --set-env-vars="DB_USER=${{ env.DB_USER }},DB_PASSWORD=${{ env.DB_PASS }},DB_NAME=${{ env.DB_NAME }},INSTANCE_CONNECTION_NAME=${{ env.DB_INSTANCE }},DB_HOST=/cloudsql/${{ env.DB_INSTANCE }},DB_PORT=5432,GIN_MODE=${{ env.GIN_MODE }}" \
             --quiet
 
