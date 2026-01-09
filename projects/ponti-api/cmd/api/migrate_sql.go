@@ -17,7 +17,7 @@ func runMigrations(dbConfig config.DB, migConfig config.Migrations) error {
 	dbURL := buildMigrateDatabaseURL(dbConfig)
 	fmt.Printf("🔍 Migration DB URL: %s\n", dbURL)
 	fmt.Printf("🔍 DB Host config: %s\n", dbConfig.Host)
-	
+
 	m, err := migrate.New(
 		migConfig.Dir,
 		dbURL,
@@ -54,39 +54,39 @@ func runMigrationsWithInstance(sqlDB *sql.DB, dbConfig config.DB, migConfig conf
 }
 
 func buildMigrateDatabaseURL(cfg config.DB) string {
-    user := strings.TrimSpace(cfg.User)
-    pass := strings.TrimSpace(cfg.Password)
-    host := strings.TrimSpace(cfg.Host)
-    name := strings.TrimSpace(cfg.Name)
-    ssl := strings.TrimSpace(cfg.SSLMode)
+	user := strings.TrimSpace(cfg.User)
+	pass := strings.TrimSpace(cfg.Password)
+	host := strings.TrimSpace(cfg.Host)
+	name := strings.TrimSpace(cfg.Name)
+	ssl := strings.TrimSpace(cfg.SSLMode)
 
-    // Preparamos los Query Params
-    q := url.Values{}
-    if ssl != "" {
-        q.Set("sslmode", ssl)
-    }
+	// Preparamos los Query Params
+	q := url.Values{}
+	if ssl != "" {
+		q.Set("sslmode", ssl)
+	}
 
-    var urlHost string
+	var urlHost string
 
-    // 🚨 ESTA LÓGICA ES LA QUE HACE QUE FUNCIONE EN CLOUD RUN 🚨
-    if strings.HasPrefix(host, "/") {
-        // Caso Cloud SQL (Socket):
-        // 1. Ponemos un host genérico ("localhost") para que la URL sea válida.
-        urlHost = "localhost" 
-        // 2. ¡IMPORTANTE! Pasamos la ruta del socket como parámetro query.
-        q.Set("host", host) 
-    } else {
-        // Caso Local/TCP:
-        urlHost = fmt.Sprintf("%s:%d", host, cfg.Port)
-    }
+	// 🚨 ESTA LÓGICA ES LA QUE HACE QUE FUNCIONE EN CLOUD RUN 🚨
+	if strings.HasPrefix(host, "/") {
+		// Caso Cloud SQL (Socket):
+		// 1. Ponemos un host genérico ("localhost") para que la URL sea válida.
+		urlHost = "localhost"
+		// 2. ¡IMPORTANTE! Pasamos la ruta del socket como parámetro query.
+		q.Set("host", host)
+	} else {
+		// Caso Local/TCP:
+		urlHost = fmt.Sprintf("%s:%d", host, cfg.Port)
+	}
 
-    u := &url.URL{
-        Scheme:   "postgres",
-        User:     url.UserPassword(user, pass),
-        Host:     urlHost,
-        Path:     "/" + name,
-        RawQuery: q.Encode(), // Esto añade ?host=/cloudsql/... a la URL
-    }
+	u := &url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(user, pass),
+		Host:     urlHost,
+		Path:     "/" + name,
+		RawQuery: q.Encode(), // Esto añade ?host=/cloudsql/... a la URL
+	}
 
-    return u.String()
+	return u.String()
 }
