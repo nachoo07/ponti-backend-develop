@@ -64,15 +64,15 @@ func buildMigrateDatabaseURL(cfg config.DB) string {
 
     var urlHost string
 
-    // 🚨 CORRECCIÓN AQUÍ 🚨
-    // Detectamos si es un Socket Unix (empieza con /) típico de Cloud SQL
+    // 🚨 ESTA LÓGICA ES LA QUE HACE QUE FUNCIONE EN CLOUD RUN 🚨
     if strings.HasPrefix(host, "/") {
-        // Si es socket, el 'Host' de la URL debe ser genérico (ej: localhost)
-        // y la ruta real del socket se pasa como parámetro ?host=...
+        // Caso Cloud SQL (Socket):
+        // 1. Ponemos un host genérico ("localhost") para que la URL sea válida.
         urlHost = "localhost" 
-        q.Set("host", host)
+        // 2. ¡IMPORTANTE! Pasamos la ruta del socket como parámetro query.
+        q.Set("host", host) 
     } else {
-        // Si es conexión normal (TCP/IP), usamos host:port
+        // Caso Local/TCP:
         urlHost = fmt.Sprintf("%s:%d", host, cfg.Port)
     }
 
@@ -81,7 +81,7 @@ func buildMigrateDatabaseURL(cfg config.DB) string {
         User:     url.UserPassword(user, pass),
         Host:     urlHost,
         Path:     "/" + name,
-        RawQuery: q.Encode(), // Esto añade ?sslmode=...&host=/cloudsql/...
+        RawQuery: q.Encode(), // Esto añade ?host=/cloudsql/... a la URL
     }
 
     return u.String()
