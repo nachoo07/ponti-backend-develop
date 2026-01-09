@@ -14,9 +14,13 @@ import (
 )
 
 func runMigrations(dbConfig config.DB, migConfig config.Migrations) error {
+	dbURL := buildMigrateDatabaseURL(dbConfig)
+	fmt.Printf("🔍 Migration DB URL: %s\n", dbURL)
+	fmt.Printf("🔍 DB Host config: %s\n", dbConfig.Host)
+	
 	m, err := migrate.New(
 		migConfig.Dir,
-		buildMigrateDatabaseURL(dbConfig),
+		dbURL,
 	)
 	if err != nil {
 		return fmt.Errorf("error creating migrate instance: %w", err)
