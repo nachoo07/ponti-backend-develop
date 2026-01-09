@@ -50,24 +50,39 @@ func runMigrationsWithInstance(sqlDB *sql.DB, dbConfig config.DB, migConfig conf
 }
 
 func buildMigrateDatabaseURL(cfg config.DB) string {
-	user := strings.TrimSpace(cfg.User)
-	pass := strings.TrimSpace(cfg.Password)
-	host := strings.TrimSpace(cfg.Host)
-	name := strings.TrimSpace(cfg.Name)
-	ssl := strings.TrimSpace(cfg.SSLMode)
+    user := strings.TrimSpace(cfg.User)
+    pass := strings.TrimSpace(cfg.Password)
+    host := strings.TrimSpace(cfg.Host)
+    name := strings.TrimSpace(cfg.Name)
+    ssl := strings.TrimSpace(cfg.SSLMode)
 
-	u := &url.URL{
-		Scheme: "postgres",
-		User:   url.UserPassword(user, pass),
-		Host:   fmt.Sprintf("%s:%d", host, cfg.Port),
-		Path:   "/" + name,
-	}
+    // Preparamos los Query Params
+    q := url.Values{}
+    if ssl != "" {
+        q.Set("sslmode", ssl)
+    }
 
-	if ssl != "" {
-		q := url.Values{}
-		q.Set("sslmode", ssl)
-		u.RawQuery = q.Encode()
-	}
+    var urlHost string
 
-	return u.String()
+    // 🚨 CORRECCIÓN AQUÍ 🚨
+    // Detectamos si es un Socket Unix (empieza con /) típico de Cloud SQL
+    if strings.HasPrefix(host, "/") {
+        // Si es socket, el 'Host' de la URL debe ser genérico (ej: localhost)
+        // y la ruta real del socket se pasa como parámetro ?host=...
+        urlHost = "localhost" 
+        q.Set("host", host)
+    } else {
+        // Si es conexión normal (TCP/IP), usamos host:port
+        urlHost = fmt.Sprintf("%s:%d", host, cfg.Port)
+    }
+
+    u := &url.URL{
+        Scheme:   "postgres",
+        User:     url.UserPassword(user, pass),
+        Host:     urlHost,
+        Path:     "/" + name,
+        RawQuery: q.Encode(), // Esto añade ?sslmode=...&host=/cloudsql/...
+    }
+
+    return u.String()
 }
