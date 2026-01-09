@@ -13,10 +13,18 @@ func setDeployEnv(ctx context.Context, deps *wire.Dependencies) {
 	env := pkgenv.GetEnvFromString(deps.Config.Deploy.Environment)
 
 	switch platform {
-	case pkgenv.Local, pkgenv.GCP:
+	case pkgenv.Local:
 		switch env {
 		case pkgenv.Dev:
 			if err := runMigrations(deps.Config.DB, deps.Config.Migrations); err != nil {
+				log.Fatalf("Failed to run SQL migrations: %v", err)
+			}
+		}
+	case pkgenv.GCP:
+		switch env {
+		case pkgenv.Dev:
+			// Use existing GORM connection for Cloud SQL socket
+			if err := runMigrationsWithInstance(deps.GormRepo.GetSQLDB(), deps.Config.DB, deps.Config.Migrations); err != nil {
 				log.Fatalf("Failed to run SQL migrations: %v", err)
 			}
 		}
