@@ -11,7 +11,12 @@ import (
 	wire "github.com/alphacodinggroup/ponti-backend/projects/ponti-api/wire"
 )
 
+
 func main() {
+
+	 // --- AGREGAR ESTO PARA FORZAR REBUILD Y VER LOGS ---
+    log.Println("🏁🏁🏁 [STARTUP] INICIANDO APLICACIÓN (VERSION CON MOCK) 🏁🏁🏁")
+    // ----------------------------------------------------
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
