@@ -88,7 +88,7 @@ jobs:
               X_API_KEY=f9eac0c8d3dbc828c9d8730446d902483917c465fa07889d87dc66934cc9b9cb,\
               \
               # TRUCO: IP falsa para satisfacer al código + Socket real inyectado en params \
-              DB_HOST=127.0.0.1,\
+              DB_HOST=/cloudsql/${{ secrets.DB_INSTANCE_NAME }}
               DB_SSL_MODE=disable&host=/cloudsql/${{ secrets.DB_INSTANCE_NAME }},\
               SSL_MODE=disable&host=/cloudsql/${{ secrets.DB_INSTANCE_NAME }}" \
             --quiet

@@ -3,6 +3,7 @@ package pkgpostgresql
 import (
 	"fmt"
 	"log"
+	"strings"
 )
 
 type config struct {
@@ -29,8 +30,18 @@ func newConfig(user, password, host, port, migrationsDir, dbName, sslMode string
 }
 
 // DNS genera la cadena de conexión para PostgreSQL
+/*
 func (c *config) DNS() string {
 	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", c.User, c.Password, c.Host, c.Port, c.DbName, c.SSLMode)
+}*/
+
+func (c *config) DNS() string {
+    // Si es Socket (Cloud Run), usa formato compatible
+    if strings.HasPrefix(c.Host, "/") {
+        return fmt.Sprintf("postgres://%s:%s@localhost/%s?host=%s", c.User, c.Password, c.DbName, c.Host)
+    }
+    // Si es Local/TCP, mantiene el formato actual
+    return fmt.Sprintf("postgres://%s:%s@%s:%s/%s", c.User, c.Password, c.Host, c.Port, c.DbName)
 }
 
 func (c *config) GetHost() string {
