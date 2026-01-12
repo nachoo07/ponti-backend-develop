@@ -27,7 +27,7 @@ func ErrorHandlingMiddleware() gin.HandlerFunc {
 		if len(c.Errors) > 0 {
 			log.Printf("[ErrorHandlingMiddleware] Found %d error(s)", len(c.Errors))
 
-			// Take the first error for the response.
+			// Take the first error for the response..
 			ginErr := c.Errors[0]
 			log.Printf("[ErrorHandlingMiddleware] Error: %v", ginErr.Err)
 
