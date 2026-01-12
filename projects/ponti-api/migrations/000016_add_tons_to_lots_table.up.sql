@@ -1,2 +1,0 @@
-ALTER TABLE lots
-ADD COLUMN tons NUMERIC;

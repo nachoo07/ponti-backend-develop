@@ -14,12 +14,12 @@ const (
 	reset  = "\033[0m"
 )
 
-// applyColor aplica un color a un formato de cadena.
+// applyColor applies a color to a string format.
 func applyColor(color, format string) string {
 	return color + format + reset
 }
 
-// Funciones de log estándar usando el paquete log por defecto
+// Standard log functions using the default log package
 func Info(format string, v ...any) {
 	log.Printf(applyColor(blue, format), v...)
 }
@@ -32,7 +32,7 @@ func Error(format string, v ...any) {
 	log.Printf(applyColor(red, format), v...)
 }
 
-// Funciones de log Go-Micro usando el logger de go-micro
+// Go-Micro log functions using the go-micro logger
 func GmInfo(format string, v ...any) {
 	logger.Infof(applyColor(blue, format), v...)
 }

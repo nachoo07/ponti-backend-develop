@@ -1,30 +1,44 @@
-// File: wire/middleware_provider.go
 package wire
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/google/wire"
 
-	mwr "github.com/alphacodinggroup/ponti-backend/pkg/http/middlewares/gin"
+	mdw "github.com/alphacodinggroup/ponti-backend/pkg/http/middlewares/gin"
+	utils "github.com/alphacodinggroup/ponti-backend/pkg/utils"
 )
 
-type MiddlewaresEnginePort interface {
-	GetGlobal() []gin.HandlerFunc
-	GetValidation() []gin.HandlerFunc
-	GetProtected() []gin.HandlerFunc
+func ProvideJwtMiddleware() (gin.HandlerFunc, error) {
+	middleware := mdw.Validate(utils.NewConfigFromEnv())
+	return middleware, nil
 }
 
-func ProvideMiddlewares() *mwr.Middlewares {
-	return mwr.NewDefaultMiddlewares()
-}
+func ProvideMiddlewares(jwtMiddleware gin.HandlerFunc) (*mdw.Middlewares, error) {
+	globalMiddlewares := []gin.HandlerFunc{
+		mdw.ErrorHandlingMiddleware(),
+		mdw.RequestAndResponseLogger(mdw.HttpLoggingOptions{
+			LogLevel:       "info",
+			IncludeHeaders: true,
+			IncludeBody:    false,
+			ExcludedPaths: []string{
+				"/health",
+				"/ping",
+				"/swagger/spec",
+				"/swagger/ui/index.html",
+			},
+		}),
+	}
 
-// ProvideMiddlewaresEnginePort convierte el *mwr.Middlewares en la interfaz MiddlewaresEnginePort.
-func ProvideMiddlewaresEnginePort(m *mwr.Middlewares) MiddlewaresEnginePort {
-	return m
-}
+	validatedMiddlewares := []gin.HandlerFunc{
+		mdw.ValidateCredentials(),
+	}
 
-// MiddlewareSet expone los dos providers necesarios.
-var MiddlewareSet = wire.NewSet(
-	ProvideMiddlewares,
-	ProvideMiddlewaresEnginePort,
-)
+	protectedMiddlewares := []gin.HandlerFunc{
+		jwtMiddleware,
+	}
+
+	return &mdw.Middlewares{
+		Global:    globalMiddlewares,
+		Validated: validatedMiddlewares,
+		Protected: protectedMiddlewares,
+	}, nil
+}

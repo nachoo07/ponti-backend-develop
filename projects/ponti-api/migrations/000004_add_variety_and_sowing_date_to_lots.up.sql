@@ -1,3 +1,0 @@
-ALTER TABLE lots
-ADD COLUMN variety TEXT,
-ADD COLUMN sowing_date DATE;

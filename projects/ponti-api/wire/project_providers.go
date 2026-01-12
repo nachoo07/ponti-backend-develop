@@ -1,84 +1,45 @@
 package wire
 
 import (
-	"github.com/google/wire"
+	"errors"
 
-	gormpkg "github.com/alphacodinggroup/ponti-backend/pkg/databases/sql/gorm"
-	mwr "github.com/alphacodinggroup/ponti-backend/pkg/http/middlewares/gin"
-	pgin "github.com/alphacodinggroup/ponti-backend/pkg/http/servers/gin"
-	sug "github.com/alphacodinggroup/ponti-backend/pkg/words-suggesters/trigram-search"
+	gorm "github.com/alphacodinggroup/ponti-backend/pkg/databases/sql/gorm"
+	mdw "github.com/alphacodinggroup/ponti-backend/pkg/http/middlewares/gin"
+	ginsrv "github.com/alphacodinggroup/ponti-backend/pkg/http/servers/gin"
 
-	cfg "github.com/alphacodinggroup/ponti-backend/projects/ponti-api/cmd/config"
+	customer "github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/customer"
+	field "github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/field"
+	investor "github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/investor"
+	lot "github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/lot"
+	manager "github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/manager"
 	project "github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/project"
 )
 
-// ProvideProjectGormEnginePort ...
-func ProvideProjectGormEnginePort(r *gormpkg.Repository) project.GormEnginePort {
-	return r
+// ProvideProjectRepository creates a Project repository instance.
+func ProvideProjectRepository(repo gorm.Repository) (project.Repository, error) {
+	if repo == nil {
+		return nil, errors.New("gorm repository cannot be nil")
+	}
+	return project.NewRepository(repo), nil
 }
 
-// ProvideProjectRepository ...
-func ProvideProjectRepository(r project.GormEnginePort) *project.Repository {
-	return project.NewRepository(r)
+// ProvideProjectUseCases wires the Project use cases with its repository and required services.
+func ProvideProjectUseCases(
+	repo project.Repository,
+	customerUC customer.UseCases,
+	managerUC manager.UseCases,
+	investorUC investor.UseCases,
+	fieldUC field.UseCases,
+	lotUC lot.UseCases,
+) project.UseCases {
+	return project.NewUseCases(repo, customerUC, managerUC, investorUC, fieldUC, lotUC)
 }
 
-// ProvideProjectRepositoryPort ...
-func ProvideProjectRepositoryPort(repo *project.Repository) project.RepositoryPort {
-	return repo
-}
-
-// ProvideProjectConfigAPI ...
-func ProvideProjectConfigAPI(c *cfg.Config) project.ConfigAPIPort {
-	return &c.API
-}
-
-// ProvideProjectGinEnginePort ...
-func ProvideProjectGinEnginePort(s *pgin.Server) project.GinEnginePort {
-	return s
-}
-
-// ProvideProjectMiddlewaresEnginePort ...
-func ProvideProjectMiddlewaresEnginePort(m *mwr.Middlewares) project.MiddlewaresEnginePort {
-	return m
-}
-
-// ProvideProjectSuggesterPort ...
-func ProvideProjectSuggesterPort(s *sug.WordsSuggester) project.WordsSuggesterPort {
-	return project.NewWordsSuggester(s)
-}
-
-// ProvideProjectUseCases ...
-func ProvideProjectUseCases(rep project.RepositoryPort, sug project.WordsSuggesterPort) *project.UseCases {
-	return project.NewUseCases(rep, sug)
-}
-
-// ProvideProjectUseCasesPort ...
-func ProvideProjectUseCasesPort(u *project.UseCases) project.UseCasesPort {
-	return u
-}
-
-// ProvideProjectHandler ...
+// ProvideProjectHandler creates the HTTP handler for Project endpoints.
 func ProvideProjectHandler(
-	server project.GinEnginePort,
-	ucs project.UseCasesPort,
-	cfg project.ConfigAPIPort,
-	mws project.MiddlewaresEnginePort,
+	server ginsrv.Server,
+	projUC project.UseCases,
+	middlewares *mdw.Middlewares,
 ) *project.Handler {
-	return project.NewHandler(ucs, server, cfg, mws)
+	return project.NewHandler(server, projUC, middlewares)
 }
-
-// ProjectSet ...
-var ProjectSet = wire.NewSet(
-	ProvideProjectGormEnginePort,
-	ProvideProjectRepository,
-	ProvideProjectRepositoryPort,
-	ProvideProjectConfigAPI,
-	ProvideProjectGinEnginePort,
-	ProvideProjectMiddlewaresEnginePort,
-
-	ProvideProjectSuggesterPort,
-
-	ProvideProjectUseCases,
-	ProvideProjectUseCasesPort,
-	ProvideProjectHandler,
-)

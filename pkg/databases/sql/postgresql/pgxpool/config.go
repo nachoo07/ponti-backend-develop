@@ -5,9 +5,10 @@ import (
 	"log"
 )
 
+
+
 type config struct {
 	Host          string
-	SSLMode       string
 	User          string
 	Password      string
 	DbName        string
@@ -16,10 +17,9 @@ type config struct {
 }
 
 // newConfig crea una nueva configuración con los valores proporcionados
-func newConfig(user, password, host, port, migrationsDir, dbName, sslMode string) Config {
+func newConfig(user, password, host, port, migrationsDir, dbName string) Config {
 	return &config{
 		Host:          host,
-		SSLMode:       sslMode,
 		User:          user,
 		Password:      password,
 		DbName:        dbName,
@@ -30,15 +30,11 @@ func newConfig(user, password, host, port, migrationsDir, dbName, sslMode string
 
 // DNS genera la cadena de conexión para PostgreSQL
 func (c *config) DNS() string {
-	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", c.User, c.Password, c.Host, c.Port, c.DbName, c.SSLMode)
+	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", c.User, c.Password, c.Host, c.Port, c.DbName)
 }
 
 func (c *config) GetHost() string {
 	return c.Host
-}
-
-func (c *config) GetSSLMode() string {
-	return c.SSLMode
 }
 
 func (c *config) GetUser() string {

@@ -17,7 +17,7 @@ app/main/bin/
 # Uncomment the following line if you decide to exclude environment configs
 # .env
 # .env.*
-# .env.local
+.env.local
 # .env.*.local
 
 # System-generated Files

@@ -1,0 +1,90 @@
+services:
+  ponti-api:
+    build:
+      context: ../../
+      dockerfile: ./projects/ponti-api/Dockerfile.dev
+    image: "ponti-api:${APP_VERSION}"
+    env_file:
+      - .env
+    ports:
+      - "${HTTP_SERVER_PORT}:${HTTP_SERVER_PORT}"
+      - "${DELVE_PORT}:${DELVE_PORT}"
+    volumes:
+      - type: bind
+        source: ../../
+        target: /app
+      - /var/run/docker.sock:/var/run/docker.sock
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - GO111MODULE=on
+      - BUILDING_FILES=/app/cmd/api/main.go
+      - APP_NAME=qh
+    depends_on:
+      - ponti-db
+    networks:
+      - app-network
+    restart: on-failure
+    command: tail -f /dev/null
+
+  ponti-db:
+    image: postgres:16.3
+    ports:
+      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - ponti-db_data:/var/lib/postgresql/data
+      - ./infra/postgres-storage:/storage
+      - ./infra/postgres-init:/docker-entrypoint-initdb.d
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  pgadmin:
+    image: dpage/pgadmin4:8.12
+    ports:
+      - "${PGADMIN_PORT}:${PGADMIN_TARGET_PORT}"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD}
+    logging:
+      driver: "json-file" 
+    depends_on:
+      - ponti-db
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    ports:
+      - "${SMTP_PORT}:${SMTP_PORT}"   # Puerto SMTP fijo
+      - "${MH_WEB_UI_PORT}:${MH_WEB_UI_PORT}"   # Puerto UI web fijo
+    networks:
+      - app-network
+    restart: unless-stopped
+    volumes:
+      - mailhog_data:/var/lib/mailhog
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  ponti-db_data:
+  pgadmin_data:
+  mailhog_data:

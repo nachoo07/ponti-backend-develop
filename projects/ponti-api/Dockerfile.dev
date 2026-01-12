@@ -1,0 +1,63 @@
+FROM golang:1.23
+
+# Instalar Zsh, git, Go tools (Delve y Air), y tzdata para la zona horaria
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends docker.io git zsh tzdata curl tree xclip && \
+    rm -rf /var/lib/apt/lists/* && \
+    go install github.com/go-delve/delve/cmd/dlv@latest && \
+    go install golang.org/x/tools/gopls@latest && \
+    go install github.com/cweill/gotests/gotests@v1.6.0 && \
+    go install github.com/fatih/gomodifytags@v1.17.0 && \
+    go install github.com/josharian/impl@v1.4.0 && \
+    go install github.com/haya14busa/goplay/cmd/goplay@v1.0.0 && \
+    go install honnef.co/go/tools/cmd/staticcheck@latest
+
+# Configurar la zona horaria a Buenos Aires, Argentina
+ENV TZ=America/Argentina/Buenos_Aires
+
+# Crear un enlace simbólico a la zona horaria correcta
+RUN ln -fs /usr/share/zoneinfo/America/Argentina/Buenos_Aires /etc/localtime && \
+    dpkg-reconfigure -f noninteractive tzdata
+
+# Agregar el directorio bin de Go al PATH
+ENV PATH="/root/go/bin:${PATH}"
+
+# Establecer el directorio de trabajo dentro del contenedor
+WORKDIR /app
+
+COPY . .
+
+# Instalar dependencias de Go
+WORKDIR /app/projects/ponti-api
+RUN go mod download && go mod verify
+
+WORKDIR /app/pkg
+RUN go mod download && go mod verify
+
+WORKDIR /app
+
+# Crear el directorio tmp si no existe
+RUN mkdir -p /app/tmp
+RUN chmod -R 775 /app/tmp
+
+# Crear un usuario no root de forma explícita y establecer Zsh como su shell predeterminado
+RUN useradd -m -s /usr/bin/zsh vscode
+
+# Cambiar al usuario vscode para instalar Oh My Zsh
+USER vscode
+WORKDIR /home/vscode
+
+# Instalar Oh My Zsh para el usuario vscode
+RUN curl -Lo install.sh https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh && \
+    RUNZSH=no sh install.sh && \
+    rm install.sh && \
+    cp /home/vscode/.oh-my-zsh/templates/zshrc.zsh-template /home/vscode/.zshrc
+
+# Volver al directorio de trabajo y cambiar el propietario de los archivos
+WORKDIR /app
+RUN chown -R vscode:vscode /home/vscode
+
+# Exponer los puertos necesarios
+EXPOSE 8080 2345
+
+CMD ["tail", "-f", "/dev/null"]

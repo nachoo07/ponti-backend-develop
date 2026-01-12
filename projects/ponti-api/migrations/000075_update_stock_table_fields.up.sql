@@ -1,3 +1,0 @@
-ALTER TABLE stocks
-  ALTER COLUMN units_entered TYPE NUMERIC(15,3),
-  ALTER COLUMN units_consumed TYPE NUMERIC(15,3);

@@ -1,0 +1,386 @@
+{
+	"info": {
+		"_postman_id": "fec115d9-96b0-4602-9f39-be4f38eaad4a",
+		"name": "Soalen",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "18506887",
+		"_collection_link": "https://lively-shadow-869772.postman.co/workspace/Pablo's~b682a4a4-2eb2-4a31-84a2-f470414ee35b/collection/18506887-fec115d9-96b0-4602-9f39-be4f38eaad4a?action=share&source=collection_link&creator=18506887"
+	},
+	"item": [
+		{
+			"name": "Ponti-API",
+			"item": [
+				{
+					"name": "Create Item",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Test Item\",\n    \"price_usd\": 29.99,\n    \"category_id\": 1,\n    \"supplier_id\": 2\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8080/api/v1/items/public",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"items",
+								"public"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Item",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Test 322\",\n    \"price_usd\": 39.99,\n    \"category_id\": 1,\n    \"supplier_id\": 2\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8080/api/v1/items/public/35",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"items",
+								"public",
+								"35"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Item",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Test 2\",\n    \"price_usd\": 39.99,\n    \"category_id\": 1,\n    \"supplier_id\": 2\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8080/api/v1/items/public/35",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"items",
+								"public",
+								"35"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Items",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Test 2\",\n    \"price_usd\": 39.99,\n    \"category_id\": 1,\n    \"supplier_id\": 2\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8080/api/v1/items/public",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"items",
+								"public"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Item",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Test Item\",\n    \"price_usd\": 29.99,\n    \"category_id\": 1,\n    \"supplier_id\": 2\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8080/api/v1/items/public/34",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"items",
+								"public",
+								"34"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Project",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Construcción Torre Norte\",\n  \"customer\": {\n    \"id\": 0,\n    \"name\": \"Inmobiliaria Buenos Aires S.A.\"\n  },\n  \"managers\": [\n    {\n      \"id\": 0,\n      \"name\": \"María López\"\n    },\n    {\n      \"id\": 0,\n      \"name\": \"Juan Pérez\"\n    }\n  ],\n  \"investors\": [\n    {\n      \"id\": 0,\n      \"name\": \"Fondo Capital Innovador\",\n      \"percentage\": 50\n    },\n    {\n      \"id\": 0,\n      \"name\": \"Grupo Inversor del Sur\",\n      \"percentage\": 50\n    }\n  ],\n  \"fields\": [\n    {\n      \"name\": \"Campo A\",\n      \"lease_type_id\": 5,\n      \"lots\": [\n        {\n          \"name\": \"Parcela A1\",\n          \"hectares\": 2.5,\n          \"previous_crop_id\": 1,\n          \"current_crop_id\": 2,\n          \"season\": \"Invierno 2025\"\n        },\n        {\n          \"name\": \"Parcela A2\",\n          \"hectares\": 3.0,\n          \"previous_crop_id\": 1,\n          \"current_crop_id\": 2,\n          \"season\": \"Verano 2025\"\n        }\n      ]\n    },\n    {\n      \"name\": \"Campo B\",\n      \"lease_type_id\": 6,\n      \"lots\": [\n        {\n          \"name\": \"Parcela B1\",\n          \"hectares\": 1.2,\n          \"previous_crop_id\": 1,\n          \"current_crop_id\": 2,\n          \"season\": \"Otoño 2025\"\n        }\n      ]\n    }\n  ]\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8080/api/v1/projects/public",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"projects",
+								"public"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Projects by Customer",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8080/api/v1/projects/public/customer/1",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"projects",
+								"public",
+								"customer",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Projects",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8080/api/v1/projects/public",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"projects",
+								"public"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Crops",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8080/api/v1/crops/public",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"crops",
+								"public"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Project",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8080/api/v1/projects/public/1",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"projects",
+								"public",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Crop",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\":\"wheat\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8080/api/v1/crops/public/",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"crops",
+								"public",
+								""
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

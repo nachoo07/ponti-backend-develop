@@ -6,38 +6,31 @@ import (
 	domain "github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/investor/usecases/domain"
 )
 
-type RepositoryPort interface {
-	CreateInvestor(context.Context, *domain.Investor) (int64, error)
-	ListInvestors(context.Context) ([]domain.ListedInvestor, error)
-	GetInvestor(context.Context, int64) (*domain.Investor, error)
-	UpdateInvestor(context.Context, *domain.Investor) error
-	DeleteInvestor(context.Context, int64) error
+type useCases struct {
+	repo Repository
 }
 
-type UseCases struct {
-	repo RepositoryPort
+// NewUseCases creates a new instance of Investor use cases.
+func NewUseCases(repo Repository) UseCases {
+	return &useCases{repo: repo}
 }
 
-func NewUseCases(repo RepositoryPort) *UseCases {
-	return &UseCases{repo: repo}
-}
-
-func (u *UseCases) CreateInvestor(ctx context.Context, inv *domain.Investor) (int64, error) {
+func (u *useCases) CreateInvestor(ctx context.Context, inv *domain.Investor) (int64, error) {
 	return u.repo.CreateInvestor(ctx, inv)
 }
 
-func (u *UseCases) ListInvestors(ctx context.Context) ([]domain.ListedInvestor, error) {
+func (u *useCases) ListInvestors(ctx context.Context) ([]domain.Investor, error) {
 	return u.repo.ListInvestors(ctx)
 }
 
-func (u *UseCases) GetInvestor(ctx context.Context, id int64) (*domain.Investor, error) {
+func (u *useCases) GetInvestor(ctx context.Context, id int64) (*domain.Investor, error) {
 	return u.repo.GetInvestor(ctx, id)
 }
 
-func (u *UseCases) UpdateInvestor(ctx context.Context, inv *domain.Investor) error {
+func (u *useCases) UpdateInvestor(ctx context.Context, inv *domain.Investor) error {
 	return u.repo.UpdateInvestor(ctx, inv)
 }
 
-func (u *UseCases) DeleteInvestor(ctx context.Context, id int64) error {
+func (u *useCases) DeleteInvestor(ctx context.Context, id int64) error {
 	return u.repo.DeleteInvestor(ctx, id)
 }

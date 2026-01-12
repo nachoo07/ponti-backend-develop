@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package user;
+option go_package = "github.com/devpablocristo/golang-monorepo/pb;pb"; 
+
+service UserService {
+  rpc GetUserUUID(GetUserUUIDRequest) returns (GetUserUUIDResponse);
+}
+
+message GetUserUUIDRequest {
+  string username = 1;
+  string password_hash = 2;
+}
+
+message GetUserUUIDResponse {
+  string UUID = 1;
+}
+
+// correr desde dentro de /proto
+// protoc --go_out=../pb --go-grpc_out=../pb --go_opt=module=github.com/devpablocristo/golang-monorepo/pb --go-grpc_opt=module=github.com/devpablocristo/golang-monorepo/pb user.proto

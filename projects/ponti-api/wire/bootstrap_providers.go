@@ -1,101 +1,45 @@
 package wire
 
 import (
-	"context"
-	"net/http"
-	"strconv"
+	"fmt"
 
-	"github.com/gin-gonic/gin"
-	"github.com/google/wire"
-	"gorm.io/gorm"
-
-	pgorm "github.com/alphacodinggroup/ponti-backend/pkg/databases/sql/gorm"
-	pgin "github.com/alphacodinggroup/ponti-backend/pkg/http/servers/gin"
-	sug "github.com/alphacodinggroup/ponti-backend/pkg/words-suggesters/trigram-search"
-	config "github.com/alphacodinggroup/ponti-backend/projects/ponti-api/cmd/config"
+	gorm "github.com/alphacodinggroup/ponti-backend/pkg/databases/sql/gorm"
+	pgdb "github.com/alphacodinggroup/ponti-backend/pkg/databases/sql/postgresql/pgxpool"
+	ginsrv "github.com/alphacodinggroup/ponti-backend/pkg/http/servers/gin"
+	ssmtp "github.com/alphacodinggroup/ponti-backend/pkg/notification/smtp"
 )
 
-// --- GORM ----
+func ProvideGormRepository() (gorm.Repository, error) {
+	repo, err := gorm.Bootstrap("", "", "", "", "", 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize Gorm: %w", err)
+	}
 
-type GormEnginePort interface {
-	Address() string
-	AutoMigrate(...any) error
-	Client() *gorm.DB
-	Connect(pgorm.ConfigPort) error
+	return repo, nil
 }
 
-func ProvideGormRepository(cfg *config.DB) (*pgorm.Repository, error) {
-	return pgorm.Bootstrap(
-		cfg.Type,
-		cfg.Host,
-		cfg.User,
-		cfg.Password,
-		cfg.Name,
-		cfg.SSLMode,
-		cfg.Port,
-	)
+func ProvideGinServer() (ginsrv.Server, error) {
+	isTest := false
+	server, err := ginsrv.Bootstrap("", "", isTest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize Gin server: %w", err)
+	}
+	return server, nil
 }
 
-func ProvideGormRepositoryPort(repo *pgorm.Repository) GormEnginePort {
-	return repo
+func ProvidePostgresRepository() (pgdb.Repository, error) {
+	repo, err := pgdb.Bootstrap("", "", "", "", "", "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to bootstrap PostgreSQL repository: %w", err)
+	}
+	return repo, nil
 }
 
-var GormSet = wire.NewSet(
-	ProvideGormRepository,
-	ProvideGormRepositoryPort,
-)
+func ProvideSmtpService() (ssmtp.Service, error) {
+	ssmtp, err := ssmtp.Bootstrap("", "", "", "", "", "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize SMTP service: %w", err)
+	}
 
-// --- Gin Server ----
-
-type GinEnginePort interface {
-	GetRouter() *gin.Engine
-	RunServer(ctx context.Context) error
-	WrapH(h http.Handler) gin.HandlerFunc
+	return ssmtp, nil
 }
-
-func ProvideGinEngine(cfg *config.Config) (*pgin.Server, error) {
-	return pgin.Bootstrap(
-		strconv.Itoa(cfg.HTTPServer.Port),
-		cfg.API.Version,
-		false,
-	)
-}
-
-func ProvideGinEnginePort(srv *pgin.Server) GinEnginePort {
-	return srv
-}
-
-var GinSet = wire.NewSet(
-	ProvideGinEngine,
-	ProvideGinEnginePort,
-)
-
-// --- WordsSuggester Providers -------------------------------------------
-
-type WordsSuggesterEnginePort interface {
-	Suggest(context.Context, string, string, string, int, int) ([]sug.Suggestion, int64, error)
-	Close() error
-	Health(ctx context.Context) error
-}
-
-func ProvideSuggesterDB(repo *pgorm.Repository) sug.DB {
-	return sug.NewPkggormAdapter(repo)
-}
-
-func ProvideSuggester(db sug.DB, cfg *config.WordsSuggester) (*sug.WordsSuggester, error) {
-	return sug.Bootstrap(
-		sug.WithDB(db),
-		sug.WithLimit(cfg.Limit),
-		sug.WithThreshold(cfg.Threshold),
-	)
-}
-
-func ProvideSuggesterEnginePort(s *sug.WordsSuggester) WordsSuggesterEnginePort {
-	return s
-}
-
-var SuggesterSet = wire.NewSet(
-	ProvideSuggesterDB,
-	ProvideSuggester,
-	ProvideSuggesterEnginePort,
-)
