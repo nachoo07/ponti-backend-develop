@@ -87,8 +87,11 @@ jobs:
               API_VERSION=v1,\
               X_API_KEY=f9eac0c8d3dbc828c9d8730446d902483917c465fa07889d87dc66934cc9b9cb,\
               \
-              # TRUCO: IP falsa para satisfacer al código + Socket real inyectado en params \
-              DB_HOST=/cloudsql/${{ secrets.DB_INSTANCE_NAME }}
-              DB_SSL_MODE=disable&host=/cloudsql/${{ secrets.DB_INSTANCE_NAME }},\
-              SSL_MODE=disable&host=/cloudsql/${{ secrets.DB_INSTANCE_NAME }}" \
+              # --- CONFIGURACIÓN LIMPIA (GRACIAS A TU CAMBIO DE CÓDIGO) --- \
+              # 1. Ahora sí podemos pasar la ruta del socket directamente \
+              DB_HOST=/cloudsql/${{ secrets.DB_INSTANCE_NAME }},\
+              \
+              # 2. SSL Mode normal, sin inyecciones raras \
+              DB_SSL_MODE=disable,\
+              SSL_MODE=disable" \
             --quiet
