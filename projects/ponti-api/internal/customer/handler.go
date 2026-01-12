@@ -1,45 +1,70 @@
 package customer
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 
 	types "github.com/alphacodinggroup/ponti-backend/pkg/types"
-	utils "github.com/alphacodinggroup/ponti-backend/pkg/utils"
 
-	mdw "github.com/alphacodinggroup/ponti-backend/pkg/http/middlewares/gin"
-	gsv "github.com/alphacodinggroup/ponti-backend/pkg/http/servers/gin"
 	dto "github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/customer/handler/dto"
+	domain "github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/customer/usecases/domain"
 )
 
-// Handler encapsula todas las dependencias para el HTTP handler de Customer.
-type Handler struct {
-	ucs UseCases
-	gsv gsv.Server
-	mws *mdw.Middlewares
+type UseCasesPort interface {
+	CreateCustomer(context.Context, *domain.Customer) (int64, error)
+	ListCustomers(context.Context, int, int) ([]domain.ListedCustomer, int64, error)
+	GetCustomer(context.Context, int64) (*domain.Customer, error)
+	UpdateCustomer(context.Context, *domain.Customer) error
+	DeleteCustomer(context.Context, int64) error
 }
 
-// NewHandler crea un nuevo handler de Customer.
-func NewHandler(s gsv.Server, u UseCases, m *mdw.Middlewares) *Handler {
+type GinEnginePort interface {
+	GetRouter() *gin.Engine
+	RunServer(ctx context.Context) error
+}
+
+type ConfigAPIPort interface {
+	APIVersion() string
+	APIBaseURL() string
+}
+
+type MiddlewaresEnginePort interface {
+	GetGlobal() []gin.HandlerFunc
+	GetValidation() []gin.HandlerFunc
+	GetProtected() []gin.HandlerFunc
+}
+
+// Handler encapsulates all dependencies for the Project HTTP handler.
+type Handler struct {
+	ucs UseCasesPort
+	gsv GinEnginePort
+	acf ConfigAPIPort
+	mws MiddlewaresEnginePort
+}
+
+// NewHandler creates a new Project handler.
+func NewHandler(u UseCasesPort, s GinEnginePort, c ConfigAPIPort, m MiddlewaresEnginePort) *Handler {
 	return &Handler{
 		ucs: u,
 		gsv: s,
+		acf: c,
 		mws: m,
 	}
 }
 
-// Routes registra todas las rutas de customer.
+// Routes registers all project routes.
 func (h *Handler) Routes() {
-	router := h.gsv.GetRouter()
+	r := h.gsv.GetRouter()
+	baseURL := h.acf.APIBaseURL() + "/customers"
 
-	apiVersion := h.gsv.GetApiVersion()
-	apiBase := "/api/" + apiVersion + "/customers"
-	publicPrefix := apiBase + "/public"
-	protectedPrefix := apiBase + "/protected"
+	for _, mw := range h.mws.GetValidation() {
+		r.Use(mw)
+	}
 
-	public := router.Group(publicPrefix)
+	public := r.Group(baseURL)
 	{
 		public.POST("", h.CreateCustomer)       // Crear un customer
 		public.GET("", h.ListCustomers)         // Listar todos los customers
@@ -47,25 +72,12 @@ func (h *Handler) Routes() {
 		public.PUT("/:id", h.UpdateCustomer)    // Actualizar un customer
 		public.DELETE("/:id", h.DeleteCustomer) // Eliminar un customer
 	}
-
-	// Rutas protegidas.
-	protected := router.Group(protectedPrefix)
-	{
-		protected.Use(h.mws.Protected...)
-		protected.GET("/ping", h.ProtectedPing) // Endpoint de prueba protegido
-	}
-}
-
-func (h *Handler) ProtectedPing(c *gin.Context) {
-	c.JSON(http.StatusCreated, types.MessageResponse{
-		Message: "Protected Pong!",
-	})
 }
 
 // CreateCustomer maneja la creación de un nuevo customer.
 func (h *Handler) CreateCustomer(c *gin.Context) {
 	var req dto.CreateCustomer
-	if err := utils.ValidateRequest(c, &req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		apiErr, _ := types.NewAPIError(err)
 		c.Error(apiErr).SetMeta(map[string]any{"details": err.Error()})
 		return
@@ -87,13 +99,18 @@ func (h *Handler) CreateCustomer(c *gin.Context) {
 
 // ListCustomers recupera todos los customers.
 func (h *Handler) ListCustomers(c *gin.Context) {
-	customers, err := h.ucs.ListCustomers(c.Request.Context())
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "100"))
+
+	items, total, err := h.ucs.ListCustomers(c.Request.Context(), page, perPage)
 	if err != nil {
 		apiErr, _ := types.NewAPIError(err)
 		c.Error(apiErr).SetMeta(map[string]any{"details": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, customers)
+
+	resp := dto.NewListCustomersResponse(items, page, perPage, total)
+	c.JSON(http.StatusOK, resp)
 }
 
 // GetCustomer recupera un customer por su ID.

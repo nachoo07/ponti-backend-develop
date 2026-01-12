@@ -36,7 +36,7 @@ func (s *service) Setup(addRoute func(HandlerConfig)) error {
 		return nil
 	}
 
-	// Configurar rutas base de Swagger
+	// Configurar rutas base de Swagger.
 	addRoute(HandlerConfig{
 		Path:   "/swagger.json",
 		Method: http.MethodGet,
@@ -74,13 +74,13 @@ func (s *service) serveSwaggerSpec(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *service) serveSwaggerUI(w http.ResponseWriter, r *http.Request) {
-	// Si es la ruta base de swagger, redirigir al index
+	// Si es la ruta base de Swagger, redirigir a index
 	if r.URL.Path == "/swagger" || r.URL.Path == "/swagger/" {
 		http.Redirect(w, r, "/swagger/index.html", http.StatusMovedPermanently)
 		return
 	}
 
-	// Servir archivos estáticos de Swagger UI
+	// Servir archivos estáticos de Swagger UI.
 	filePath := path.Clean(r.URL.Path[len("/swagger/"):])
 	http.ServeFile(w, r, "swagger-ui/"+filePath)
 }

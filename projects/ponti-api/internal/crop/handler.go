@@ -1,41 +1,70 @@
 package crop
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 
 	types "github.com/alphacodinggroup/ponti-backend/pkg/types"
-	utils "github.com/alphacodinggroup/ponti-backend/pkg/utils"
 
-	mdw "github.com/alphacodinggroup/ponti-backend/pkg/http/middlewares/gin"
-	gsv "github.com/alphacodinggroup/ponti-backend/pkg/http/servers/gin"
 	dto "github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/crop/handler/dto"
+	domain "github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/crop/usecases/domain"
 )
 
-type Handler struct {
-	ucs UseCases
-	gsv gsv.Server
-	mws *mdw.Middlewares
+type UseCasesPort interface {
+	CreateCrop(context.Context, *domain.Crop) (int64, error)
+	ListCrops(context.Context) ([]domain.Crop, error)
+	GetCrop(context.Context, int64) (*domain.Crop, error)
+	UpdateCrop(context.Context, *domain.Crop) error
+	DeleteCrop(context.Context, int64) error
 }
 
-func NewHandler(s gsv.Server, u UseCases, m *mdw.Middlewares) *Handler {
+type GinEnginePort interface {
+	GetRouter() *gin.Engine
+	RunServer(ctx context.Context) error
+}
+
+type ConfigAPIPort interface {
+	APIVersion() string
+	APIBaseURL() string
+}
+
+type MiddlewaresEnginePort interface {
+	GetGlobal() []gin.HandlerFunc
+	GetValidation() []gin.HandlerFunc
+	GetProtected() []gin.HandlerFunc
+}
+
+// Handler encapsulates all dependencies for the Project HTTP handler.
+type Handler struct {
+	ucs UseCasesPort
+	gsv GinEnginePort
+	acf ConfigAPIPort
+	mws MiddlewaresEnginePort
+}
+
+// NewHandler creates a new Project handler.
+func NewHandler(u UseCasesPort, s GinEnginePort, c ConfigAPIPort, m MiddlewaresEnginePort) *Handler {
 	return &Handler{
 		ucs: u,
 		gsv: s,
+		acf: c,
 		mws: m,
 	}
 }
 
+// Routes registers all project routes.
 func (h *Handler) Routes() {
-	router := h.gsv.GetRouter()
+	r := h.gsv.GetRouter()
+	baseURL := h.acf.APIBaseURL() + "/crops"
 
-	apiVersion := h.gsv.GetApiVersion()
-	apiBase := "/api/" + apiVersion + "/crops"
-	publicPrefix := apiBase + "/public"
+	for _, mw := range h.mws.GetValidation() {
+		r.Use(mw)
+	}
 
-	public := router.Group(publicPrefix)
+	public := r.Group(baseURL)
 	{
 		public.POST("", h.CreateCrop)
 		public.GET("", h.ListCrops)
@@ -47,7 +76,7 @@ func (h *Handler) Routes() {
 
 func (h *Handler) CreateCrop(c *gin.Context) {
 	var req dto.CreateCrop
-	if err := utils.ValidateRequest(c, &req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		apiErr, _ := types.NewAPIError(err)
 		c.Error(apiErr).SetMeta(map[string]any{"details": err.Error()})
 		return
@@ -75,7 +104,9 @@ func (h *Handler) ListCrops(c *gin.Context) {
 		c.Error(apiErr).SetMeta(map[string]any{"details": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, crops)
+
+	resp := dto.NewListCropsResponse(crops)
+	c.JSON(http.StatusOK, resp)
 }
 
 // GetCrop retrieves a crop by its ID.

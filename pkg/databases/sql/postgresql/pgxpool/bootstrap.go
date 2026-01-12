@@ -2,7 +2,7 @@ package pkgpostgresql
 
 import "os"
 
-func Bootstrap(user, password, host, port, migrationsDir, dbName string) (Repository, error) {
+func Bootstrap(user, password, host, port, migrationsDir, dbName, sslMode string) (Repository, error) {
 	// Si algún parámetro es vacío, se usa os.Getenv para obtener el valor
 	if user == "" {
 		user = os.Getenv("POSTGRES_USER")
@@ -22,6 +22,9 @@ func Bootstrap(user, password, host, port, migrationsDir, dbName string) (Reposi
 	if dbName == "" {
 		dbName = os.Getenv("POSTGRES_DB")
 	}
+	if sslMode == "" {
+		sslMode = os.Getenv("SSL_MODE")
+	}
 
 	// Crear la configuración
 	config := newConfig(
@@ -31,6 +34,7 @@ func Bootstrap(user, password, host, port, migrationsDir, dbName string) (Reposi
 		port,
 		migrationsDir,
 		dbName,
+		sslMode,
 	)
 
 	// Validar la configuración

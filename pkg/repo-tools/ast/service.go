@@ -630,11 +630,11 @@ func (s *service) DetectErrorHandlingPatterns(filePath string) ([]string, error)
 			// Obtener el tipo de retorno
 			// Aquí podríamos utilizar información de tipos para verificar si retorna error
 			// Por simplicidad, asumiremos que todas las funciones podrían retornar error
-			// y verificaremos si el error es manejado
+			// y verificar si el error está manejado
 			parent := s.getParentNode(node, ce)
 			if _, ok := parent.(*ast.ExprStmt); ok {
 				pos := fset.Position(ce.Pos())
-				unhandledErrors = append(unhandledErrors, fmt.Sprintf("Possible unhandled error at %s", pos))
+				unhandledErrors = append(unhandledErrors, fmt.Sprintf("Posible error no manejado en %s", pos))
 			}
 		}
 		return true
@@ -734,7 +734,7 @@ func (s *service) DetectDeprecatedFunctions(filePath string) ([]string, error) {
 			if ident, ok := ce.Fun.(*ast.Ident); ok {
 				if deprecatedFuncs[ident.Name] {
 					pos := fset.Position(ce.Pos())
-					deprecatedUsages = append(deprecatedUsages, fmt.Sprintf("Deprecated function %s used at %s", ident.Name, pos))
+					deprecatedUsages = append(deprecatedUsages, fmt.Sprintf("Función %s obsoleta usada en %s", ident.Name, pos))
 				}
 			}
 		}
@@ -801,7 +801,7 @@ func (s *service) IdentifyMagicNumbers(filePath string) ([]string, error) {
 			// Excluir valores comunes como 0 y 1
 			if bl.Value != "0" && bl.Value != "1" {
 				pos := fset.Position(bl.Pos())
-				magicNumbers = append(magicNumbers, fmt.Sprintf("Magic number %s at %s", bl.Value, pos))
+				magicNumbers = append(magicNumbers, fmt.Sprintf("Número mágico %s en %s", bl.Value, pos))
 			}
 		}
 		return true
@@ -868,7 +868,7 @@ func (s *service) IdentifyPanicsAndRecovers(filePath string) ([]string, error) {
 			if ident, ok := ce.Fun.(*ast.Ident); ok {
 				if ident.Name == "panic" || ident.Name == "recover" {
 					pos := fset.Position(ce.Pos())
-					panicsAndRecovers = append(panicsAndRecovers, fmt.Sprintf("%s called at %s", ident.Name, pos))
+					panicsAndRecovers = append(panicsAndRecovers, fmt.Sprintf("%s llamado en %s", ident.Name, pos))
 				}
 			}
 		}
@@ -889,7 +889,7 @@ func (s *service) AnalyzeTestsAndBenchmarks(filePath string) ([]string, error) {
 		if fn, ok := n.(*ast.FuncDecl); ok {
 			if strings.HasPrefix(fn.Name.Name, "Test") || strings.HasPrefix(fn.Name.Name, "Benchmark") {
 				pos := fset.Position(fn.Pos())
-				testsAndBenchmarks = append(testsAndBenchmarks, fmt.Sprintf("%s found at %s", fn.Name.Name, pos))
+				testsAndBenchmarks = append(testsAndBenchmarks, fmt.Sprintf("%s encontrado en %s", fn.Name.Name, pos))
 			}
 		}
 		return true

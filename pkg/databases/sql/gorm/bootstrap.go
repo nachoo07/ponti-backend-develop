@@ -8,9 +8,9 @@ import (
 )
 
 // Bootstrap inicializa la base de datos sin aplicar migraciones automáticamente.
-func Bootstrap(dbTypeStr, name, password, user, host string, port int) (Repository, error) {
+func Bootstrap(dbTypeStr, host, user, password, name, sslMode string, port int) (*Repository, error) {
 	if dbTypeStr == "" {
-		dbTypeStr = strings.ToLower(os.Getenv("GORM_TYPE"))
+		dbTypeStr = strings.ToLower(os.Getenv("DB_TYPE"))
 	}
 
 	var dbType DBType
@@ -25,25 +25,26 @@ func Bootstrap(dbTypeStr, name, password, user, host string, port int) (Reposito
 		return nil, fmt.Errorf("unsupported DB_TYPE: %s", dbTypeStr)
 	}
 
-	var config Config
+	var config *Config
 	switch dbType {
 	case Postgres, MySQL:
-
 		if host == "" {
-			host = os.Getenv("GORM_HOST")
+			host = os.Getenv("DB_HOST")
 		}
-
+		if sslMode == "" {
+			sslMode = os.Getenv("SSL_MODE")
+		}
 		if user == "" {
-			user = os.Getenv("GORM_USER")
+			user = os.Getenv("DB_USER")
 		}
 		if password == "" {
-			password = os.Getenv("GORM_PASSWORD")
+			password = os.Getenv("DB_PASSWORD")
 		}
 		if name == "" {
-			name = os.Getenv("GORM_NAME")
+			name = os.Getenv("DB_NAME")
 		}
 		if port == 0 {
-			port, _ = strconv.Atoi(os.Getenv("GORM_PORT"))
+			port, _ = strconv.Atoi(os.Getenv("DB_PORT"))
 		}
 
 		config = newConfig(
@@ -54,6 +55,7 @@ func Bootstrap(dbTypeStr, name, password, user, host string, port int) (Reposito
 			name,
 			port,
 			"",
+			sslMode,
 		)
 	case SQLite:
 		config = newConfig(
@@ -64,6 +66,7 @@ func Bootstrap(dbTypeStr, name, password, user, host string, port int) (Reposito
 			"",
 			0,
 			os.Getenv("SQLITE_PATH"),
+			"",
 		)
 	}
 
@@ -71,9 +74,5 @@ func Bootstrap(dbTypeStr, name, password, user, host string, port int) (Reposito
 		return nil, err
 	}
 
-	repo, err := newRepository(config)
-	if err != nil {
-		return nil, err
-	}
-	return repo, nil
+	return newRepository(config)
 }

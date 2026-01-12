@@ -1,0 +1,2 @@
+ALTER TABLE IF EXISTS stocks
+    DROP COLUMN field_id

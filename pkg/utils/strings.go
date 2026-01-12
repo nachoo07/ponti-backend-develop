@@ -10,8 +10,10 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-// isNumeric verifica si una cadena es numérica
+// IsNumeric returns true if the string contains only digits.
+// Deprecated: Use validations.ValidateNumeric instead.
 func IsNumeric(s string) bool {
+	s = strings.TrimSpace(s)
 	for _, r := range s {
 		if !unicode.IsDigit(r) {
 			return false
@@ -20,30 +22,23 @@ func IsNumeric(s string) bool {
 	return true
 }
 
-// normalizeString convierte una cadena a minúsculas y elimina acentos y caracteres especiales
+// NormalizeString lowercases and removes accents from a string.
 func NormalizeString(input string) string {
-	// Convertir a minúsculas
-	input = strings.ToLower(input)
-
-	// Eliminar acentos y caracteres especiales usando el paquete `transform`
+	input = strings.ToLower(strings.TrimSpace(input))
 	t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
 	result, _, _ := transform.String(t, input)
-
-	// Eliminar cualquier carácter que no sea una letra de la 'a' a la 'z'
+	// Keep only a-z chars
 	clean := make([]rune, 0, len(result))
 	for _, r := range result {
 		if r >= 'a' && r <= 'z' {
 			clean = append(clean, r)
 		}
 	}
-
 	return string(clean)
 }
 
-// Elimina los espacios en blanco al inicio y final de la cadena
-// Elimina todas las etiquetas HTML/XML de la cadena usando una expresión regular
+// BasicInputSanitizer trims and removes all HTML/XML tags.
 func BasicInputSanitizer(input string) string {
 	input = strings.TrimSpace(input)
-	input = regexp.MustCompile(`<[^>]*>`).ReplaceAllString(input, "")
-	return input
+	return regexp.MustCompile(`<[^>]*>`).ReplaceAllString(input, "")
 }

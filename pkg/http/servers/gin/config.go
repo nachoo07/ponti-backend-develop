@@ -4,37 +4,29 @@ import (
 	"fmt"
 )
 
-type config struct {
+type Config struct {
 	routerPort string
 	apiVersion string
 }
 
-func newConfig(routerPort, ApiVersion string) Config {
-	return &config{
+func newConfig(routerPort, ApiVersion string) *Config {
+	return &Config{
 		routerPort: routerPort,
 		apiVersion: ApiVersion,
 	}
 }
 
-func (c *config) GetRouterPort() string {
+func (c *Config) GetRouterPort() string {
 	return c.routerPort
 }
 
-func (c *config) SetRouterPort(routerPort string) {
-	c.routerPort = routerPort
+func (c *Config) GetApiVersion() string {
+	return c.routerPort
 }
 
-func (c *config) GetApiVersion() string {
-	return c.apiVersion
-}
-
-func (c *config) SetApiVersion(ApiVersion string) {
-	c.apiVersion = ApiVersion
-}
-
-func (c *config) Validate() error {
+func (c *Config) Validate() error {
 	if c.routerPort == "" {
-		return fmt.Errorf("router port is not configured")
+		return fmt.Errorf("router port is not Configured")
 	}
 	return nil
 }

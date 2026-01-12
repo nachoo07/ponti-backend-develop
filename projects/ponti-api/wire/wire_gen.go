@@ -8,139 +8,324 @@ package wire
 
 import (
 	"github.com/alphacodinggroup/ponti-backend/pkg/databases/sql/gorm"
-	"github.com/alphacodinggroup/ponti-backend/pkg/databases/sql/postgresql/pgxpool"
 	"github.com/alphacodinggroup/ponti-backend/pkg/http/middlewares/gin"
 	"github.com/alphacodinggroup/ponti-backend/pkg/http/servers/gin"
-	"github.com/alphacodinggroup/ponti-backend/pkg/notification/smtp"
+	"github.com/alphacodinggroup/ponti-backend/pkg/words-suggesters/trigram-search"
 	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/cmd/config"
+	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/app_parameters"
+	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/campaign"
+	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/category"
+	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/classtype"
+	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/commercialization"
 	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/crop"
 	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/customer"
+	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/dashboard"
+	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/data-integrity"
+	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/dollar"
 	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/field"
 	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/investor"
+	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/invoice"
+	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/labor"
+	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/leasetype"
 	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/lot"
 	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/manager"
-	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/notification"
-	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/person"
 	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/project"
-	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/user"
+	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/report"
+	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/stock"
+	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/supply"
+	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/supply_movement"
+	"github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/workorder"
 )
 
 // Injectors from wire.go:
 
 func Initialize() (*Dependencies, error) {
-	loader, err := ProvideConfigLoader()
+	config, err := ProvideAllConfigs()
 	if err != nil {
 		return nil, err
 	}
-	server, err := ProvideGinServer()
+	server, err := ProvideGinEngine(config)
 	if err != nil {
 		return nil, err
 	}
-	repository, err := ProvideGormRepository()
+	db := ProvideConfigDB(config)
+	repository, err := ProvideGormRepository(db)
 	if err != nil {
 		return nil, err
 	}
-	pkgpostgresqlRepository, err := ProvidePostgresRepository()
+	middlewares := ProvideMiddlewares()
+	pkgsuggesterDB := ProvideSuggesterDB(repository)
+	wordsSuggester := ProvideConfigSuggester(config)
+	pkgsuggesterWordsSuggester, err := ProvideSuggester(pkgsuggesterDB, wordsSuggester)
 	if err != nil {
 		return nil, err
 	}
-	service, err := ProvideSmtpService()
+	ginEnginePort := ProvideCustomerGinEnginePort(server)
+	gormEnginePort := ProvideCustomerGormEnginePort(repository)
+	customerRepository := ProvideCustomerRepository(gormEnginePort)
+	repositoryPort := ProvideCustomerRepositoryPort(customerRepository)
+	useCases := ProvideCustomerUseCases(repositoryPort)
+	useCasesPort := ProvideCustomerUseCasesPort(useCases)
+	configAPIPort := ProvideCustomerConfigAPI(config)
+	middlewaresEnginePort := ProvideCustomerMiddlewaresEnginePort(middlewares)
+	handler := ProvideCustomerHandler(ginEnginePort, useCasesPort, configAPIPort, middlewaresEnginePort)
+	campaignGinEnginePort := ProvideCampaignGinEnginePort(server)
+	campaignGormEnginePort := ProvideCampaignGormEnginePort(repository)
+	campaignRepository := ProvideCampaignRepository(campaignGormEnginePort)
+	campaignRepositoryPort := ProvideCampaignRepositoryPort(campaignRepository)
+	campaignUseCases := ProvideCampaignUseCases(campaignRepositoryPort)
+	campaignUseCasesPort := ProvideCampaignUseCasesPort(campaignUseCases)
+	campaignConfigAPIPort := ProvideCampaignConfigAPI(config)
+	campaignMiddlewaresEnginePort := ProvideCampaignMiddlewaresEnginePort(middlewares)
+	campaignHandler := ProvideCampaignHandler(campaignGinEnginePort, campaignUseCasesPort, campaignConfigAPIPort, campaignMiddlewaresEnginePort)
+	dashboardGinEnginePort := ProvideDashboardGinEnginePort(server)
+	dashboardGormEnginePort := ProvideDashboardGormEnginePort(repository)
+	dashboardRepository := ProvideDashboardRepository(dashboardGormEnginePort)
+	dashboardRepositoryPort := ProvideDashboardRepositoryPort(dashboardRepository)
+	dashboardUseCases := ProvideDashboardUseCases(dashboardRepositoryPort)
+	dashboardUseCasesPort := ProvideDashboardUseCasesPort(dashboardUseCases)
+	dashboardConfigAPIPort := ProvideDashboardConfigAPI(config)
+	dashboardMiddlewaresEnginePort := ProvideDashboardMiddlewaresEnginePort(middlewares)
+	dashboardHandler := ProvideDashboardHandler(dashboardGinEnginePort, dashboardUseCasesPort, dashboardConfigAPIPort, dashboardMiddlewaresEnginePort)
+	data_integrityGinEnginePort := ProvideDataIntegrityGinEnginePort(server)
+	gormEngine := ProvideWorkorderGormEnginePort(repository)
+	workorderRepository := ProvideWorkorderRepository(gormEngine)
+	workorderRepositoryPort := ProvideWorkorderRepositoryPort(workorderRepository)
+	data_integrityWorkorderRepositoryPort := ProvideDataIntegrityWorkorderRepositoryPort(workorderRepositoryPort)
+	data_integrityDashboardRepositoryPort := ProvideDataIntegrityDashboardRepositoryPort(dashboardRepositoryPort)
+	lotGormEnginePort := ProvideLotGormEnginePort(repository)
+	lotRepository := ProvideLotRepository(lotGormEnginePort)
+	lotRepositoryPort := ProvideLotRepositoryPort(lotRepository)
+	data_integrityLotRepositoryPort := ProvideDataIntegrityLotRepositoryPort(lotRepositoryPort)
+	reportGormEnginePort := ProvideReportGormEnginePort(repository)
+	reportRepository := ProvideReportRepository(reportGormEnginePort)
+	reportRepositoryPort := ProvideReportRepositoryPort(reportRepository)
+	data_integrityReportRepositoryPort := ProvideDataIntegrityReportRepositoryPort(reportRepositoryPort)
+	stockGormEnginePort := ProvideStockGormEnginePort(repository)
+	stockRepository := ProvideStockRepository(stockGormEnginePort)
+	stockRepositoryPort := ProvideStockRepositoryPort(stockRepository)
+	data_integrityStockRepositoryPort := ProvideDataIntegrityStockRepositoryPort(stockRepositoryPort)
+	data_integrityUseCases := ProvideDataIntegrityUseCases(data_integrityWorkorderRepositoryPort, data_integrityDashboardRepositoryPort, data_integrityLotRepositoryPort, data_integrityReportRepositoryPort, data_integrityStockRepositoryPort)
+	data_integrityUseCasesPort := ProvideDataIntegrityUseCasesPort(data_integrityUseCases)
+	data_integrityConfigAPIPort := ProvideDataIntegrityConfigAPI(config)
+	data_integrityMiddlewaresEnginePort := ProvideDataIntegrityMiddlewaresEnginePort(middlewares)
+	data_integrityHandler := ProvideDataIntegrityHandler(data_integrityGinEnginePort, data_integrityUseCasesPort, data_integrityConfigAPIPort, data_integrityMiddlewaresEnginePort)
+	investorGinEnginePort := ProvideInvestorGinEnginePort(server)
+	investorGormEnginePort := ProvideInvestorGormEnginePort(repository)
+	investorRepository := ProvideInvestorRepository(investorGormEnginePort)
+	investorRepositoryPort := ProvideInvestorRepositoryPort(investorRepository)
+	investorUseCases := ProvideInvestorUseCases(investorRepositoryPort)
+	investorUseCasesPort := ProvideInvestorUseCasesPort(investorUseCases)
+	investorConfigAPIPort := ProvideInvestorConfigAPI(config)
+	investorMiddlewaresEnginePort := ProvideInvestorMiddlewaresEnginePort(middlewares)
+	investorHandler := ProvideInvestorHandler(investorGinEnginePort, investorUseCasesPort, investorConfigAPIPort, investorMiddlewaresEnginePort)
+	cropGinEnginePort := ProvideCropGinEnginePort(server)
+	cropGormEnginePort := ProvideCropGormEnginePort(repository)
+	cropRepository := ProvideCropRepository(cropGormEnginePort)
+	cropRepositoryPort := ProvideCropRepositoryPort(cropRepository)
+	cropUseCases := ProvideCropUseCases(cropRepositoryPort)
+	cropUseCasesPort := ProvideCropUseCasesPort(cropUseCases)
+	cropConfigAPIPort := ProvideCropConfigAPI(config)
+	cropMiddlewaresEnginePort := ProvideCropMiddlewaresEnginePort(middlewares)
+	cropHandler := ProvideCropHandler(cropGinEnginePort, cropUseCasesPort, cropConfigAPIPort, cropMiddlewaresEnginePort)
+	lotGinEnginePort := ProvideLotGinEnginePort(server)
+	lotExcelService, err := ProvideLotPkgExcelService()
 	if err != nil {
 		return nil, err
 	}
-	handlerFunc, err := ProvideJwtMiddleware()
+	xlsxEnginePort := ProvideLotXLSXEnginePort(lotExcelService)
+	exporterAdapterPort := ProvideLotExporterPort(xlsxEnginePort)
+	lotUseCases := ProvideLotUseCases(lotRepositoryPort, exporterAdapterPort)
+	lotUseCasesPort := ProvideLotUseCasesPort(lotUseCases)
+	lotConfigAPIPort := ProvideLotConfigAPI(config)
+	lotMiddlewaresEnginePort := ProvideLotMiddlewaresEnginePort(middlewares)
+	lotHandler := ProvideLotHandler(lotGinEnginePort, lotUseCasesPort, lotConfigAPIPort, lotMiddlewaresEnginePort)
+	fieldGinEnginePort := ProvideFieldGinEnginePort(server)
+	fieldGormEnginePort := ProvideFieldGormEnginePort(repository)
+	fieldRepository := ProvideFieldRepository(fieldGormEnginePort)
+	fieldRepositoryPort := ProvideFieldRepositoryPort(fieldRepository)
+	fieldUseCases := ProvideFieldUseCases(fieldRepositoryPort)
+	fieldUseCasesPort := ProvideFieldUseCasesPort(fieldUseCases)
+	fieldConfigAPIPort := ProvideFieldConfigAPI(config)
+	fieldMiddlewaresEnginePort := ProvideFieldMiddlewaresEnginePort(middlewares)
+	fieldHandler := ProvideFieldHandler(fieldGinEnginePort, fieldUseCasesPort, fieldConfigAPIPort, fieldMiddlewaresEnginePort)
+	managerGinEnginePort := ProvideManagerGinEnginePort(server)
+	managerGormEnginePort := ProvideManagerGormEnginePort(repository)
+	managerRepository := ProvideManagerRepository(managerGormEnginePort)
+	managerRepositoryPort := ProvideManagerRepositoryPort(managerRepository)
+	managerUseCases := ProvideManagerUseCases(managerRepositoryPort)
+	managerUseCasesPort := ProvideManagerUseCasesPort(managerUseCases)
+	managerConfigAPIPort := ProvideManagerConfigAPI(config)
+	managerMiddlewaresEnginePort := ProvideManagerMiddlewaresEnginePort(middlewares)
+	managerHandler := ProvideManagerHandler(managerGinEnginePort, managerUseCasesPort, managerConfigAPIPort, managerMiddlewaresEnginePort)
+	projectGinEnginePort := ProvideProjectGinEnginePort(server)
+	projectGormEnginePort := ProvideProjectGormEnginePort(repository)
+	projectRepository := ProvideProjectRepository(projectGormEnginePort)
+	projectRepositoryPort := ProvideProjectRepositoryPort(projectRepository)
+	wordsSuggesterPort := ProvideProjectSuggesterPort(pkgsuggesterWordsSuggester)
+	projectUseCases := ProvideProjectUseCases(projectRepositoryPort, wordsSuggesterPort)
+	projectUseCasesPort := ProvideProjectUseCasesPort(projectUseCases)
+	projectConfigAPIPort := ProvideProjectConfigAPI(config)
+	projectMiddlewaresEnginePort := ProvideProjectMiddlewaresEnginePort(middlewares)
+	projectHandler := ProvideProjectHandler(projectGinEnginePort, projectUseCasesPort, projectConfigAPIPort, projectMiddlewaresEnginePort)
+	reportGinEnginePort := ProvideReportGinEnginePort(server)
+	reportUseCase := ProvideReportUseCases(reportRepositoryPort)
+	reportUseCasePort := ProvideReportUseCasesPort(reportUseCase)
+	reportConfigAPIPort := ProvideReportConfigAPI(config)
+	reportMiddlewaresEnginePort := ProvideReportMiddlewaresEnginePort(middlewares)
+	reportHandler := ProvideReportHandler(reportGinEnginePort, reportUseCasePort, reportConfigAPIPort, reportMiddlewaresEnginePort)
+	leasetypeGinEnginePort := ProvideLeaseTypeGinEnginePort(server)
+	leasetypeGormEnginePort := ProvideLeaseTypeGormEnginePort(repository)
+	leasetypeRepository := ProvideLeaseTypeRepository(leasetypeGormEnginePort)
+	leasetypeRepositoryPort := ProvideLeaseTypeRepositoryPort(leasetypeRepository)
+	leasetypeUseCases := ProvideLeaseTypeUseCases(leasetypeRepositoryPort)
+	leasetypeUseCasesPort := ProvideLeaseTypeUseCasesPort(leasetypeUseCases)
+	leasetypeConfigAPIPort := ProvideLeaseTypeConfigAPI(config)
+	leasetypeMiddlewaresEnginePort := ProvideLeaseTypeMiddlewaresEnginePort(middlewares)
+	leasetypeHandler := ProvideLeaseTypeHandler(leasetypeGinEnginePort, leasetypeUseCasesPort, leasetypeConfigAPIPort, leasetypeMiddlewaresEnginePort)
+	supplyGinEnginePort := ProvideSupplyGinEnginePort(server)
+	supplyGormEnginePort := ProvideSupplyGormEnginePort(repository)
+	supplyRepository := ProvideSupplyRepository(supplyGormEnginePort)
+	supplyRepositoryPort := ProvideSupplyRepositoryPort(supplyRepository)
+	supplyMovementExcelService, err := ProvideSupplyMovementPkgExcelService()
 	if err != nil {
 		return nil, err
 	}
-	middlewares, err := ProvideMiddlewares(handlerFunc)
+	supplyXLSXEnginePort := ProvideSupplyXLSXEnginePort(supplyMovementExcelService)
+	supplyExporterAdapterPort := ProvideSupplyExporterPort(supplyXLSXEnginePort)
+	supplyUseCases := ProvideSupplyUseCases(supplyRepositoryPort, supplyExporterAdapterPort)
+	supplyUseCasesPort := ProvideSupplyUseCasesPort(supplyUseCases)
+	supplyConfigAPIPort := ProvideSupplyConfigAPI(config)
+	supplyMiddlewaresEnginePort := ProvideSupplyMiddlewaresEnginePort(middlewares)
+	supplyHandler := ProvideSupplyHandler(supplyGinEnginePort, supplyUseCasesPort, supplyConfigAPIPort, supplyMiddlewaresEnginePort)
+	categoryGinEnginePort := ProvideCategoryGinEnginePort(server)
+	categoryGormEnginePort := ProvideCategoryGormEnginePort(repository)
+	categoryRepository := ProvideCategoryRepository(categoryGormEnginePort)
+	categoryRepositoryPort := ProvideCategoryRepositoryPort(categoryRepository)
+	categoryUseCases := ProvideCategoryUseCases(categoryRepositoryPort)
+	categoryUseCasesPort := ProvideCategoryUseCasesPort(categoryUseCases)
+	categoryConfigAPIPort := ProvideCategoryConfigAPI(config)
+	categoryMiddlewaresEnginePort := ProvideCategoryMiddlewaresEnginePort(middlewares)
+	categoryHandler := ProvideCategoryHandler(categoryGinEnginePort, categoryUseCasesPort, categoryConfigAPIPort, categoryMiddlewaresEnginePort)
+	app_parametersGinEnginePort := ProvideAppParametersGinEnginePort(server)
+	app_parametersGormEnginePort := ProvideAppParametersGormEnginePort(repository)
+	app_parametersRepository := ProvideAppParametersRepository(app_parametersGormEnginePort)
+	app_parametersRepositoryPort := ProvideAppParametersRepositoryPort(app_parametersRepository)
+	app_parametersUseCases := ProvideAppParametersUseCases(app_parametersRepositoryPort)
+	app_parametersUseCasesPort := ProvideAppParametersUseCasesPort(app_parametersUseCases)
+	app_parametersConfigAPIPort := ProvideAppParametersConfigAPI(config)
+	app_parametersMiddlewaresEnginePort := ProvideAppParametersMiddlewaresEnginePort(middlewares)
+	app_parametersHandler := ProvideAppParametersHandler(app_parametersGinEnginePort, app_parametersUseCasesPort, app_parametersConfigAPIPort, app_parametersMiddlewaresEnginePort)
+	classtypeGinEnginePort := ProvideClassTypeGinEnginePort(server)
+	classtypeGormEnginePort := ProvideClassTypeGormEnginePort(repository)
+	classtypeRepository := ProvideClassTypeRepository(classtypeGormEnginePort)
+	classtypeRepositoryPort := ProvideClassTypeRepositoryPort(classtypeRepository)
+	classtypeUseCases := ProvideClassTypeUseCases(classtypeRepositoryPort)
+	classtypeUseCasesPort := ProvideClassTypeUseCasesPort(classtypeUseCases)
+	classtypeConfigAPIPort := ProvideClassTypeConfigAPI(config)
+	classtypeMiddlewaresEnginePort := ProvideClassTypeMiddlewaresEnginePort(middlewares)
+	classtypeHandler := ProvideClassTypeHandler(classtypeGinEnginePort, classtypeUseCasesPort, classtypeConfigAPIPort, classtypeMiddlewaresEnginePort)
+	dollarGinEnginePort := ProvideDollarGinEnginePort(server)
+	dollarGormEnginePort := ProvideDollarGormEnginePort(repository)
+	dollarRepository := ProvideDollarRepository(dollarGormEnginePort)
+	dollarRepositoryPort := ProvideDollarRepositoryPort(dollarRepository)
+	dollarUseCases := ProvideDollarUseCases(dollarRepositoryPort)
+	useCasePort := ProvideDollarUseCasePort(dollarUseCases)
+	dollarConfigAPIPort := ProvideDollarConfigAPI(config)
+	dollarMiddlewaresEnginePort := ProvideDollarMiddlewaresEnginePort(middlewares)
+	dollarHandler := ProvideDollarHandler(dollarGinEnginePort, useCasePort, dollarConfigAPIPort, dollarMiddlewaresEnginePort)
+	workorderGinEnginePort := ProvideWorkorderGinEnginePort(server)
+	service, err := ProvidePkgExcelService()
 	if err != nil {
 		return nil, err
 	}
-	personRepository, err := ProvidePersonRepository(pkgpostgresqlRepository)
+	workorderXLSXEnginePort := ProvideXLSXEnginePort(service)
+	workorderExporterAdapterPort := ProvideExporterPort(workorderXLSXEnginePort)
+	workorderUseCases := ProvideWorkorderUseCases(workorderRepositoryPort, workorderExporterAdapterPort)
+	workorderUseCasesPort := ProvideWorkorderUseCasesPort(workorderUseCases)
+	workorderConfigAPIPort := ProvideWorkorderConfigAPI(config)
+	workorderMiddlewaresEnginePort := ProvideWorkorderMiddlewaresEnginePort(middlewares)
+	workorderHandler := ProvideWorkorderHandler(workorderGinEnginePort, workorderUseCasesPort, workorderConfigAPIPort, workorderMiddlewaresEnginePort)
+	laborGinEnginePort := ProvideLaborGinEnginePort(server)
+	laborGormEnginePort := ProvideLaborGormEnginePort(repository)
+	laborRepository := ProvideLaborRepository(laborGormEnginePort)
+	laborRepositoryPort := ProvideLaborRepositoryPort(laborRepository)
+	laborExcelService, err := ProvideLaborPkgExcelService()
 	if err != nil {
 		return nil, err
 	}
-	useCases := ProvidePersonUseCases(personRepository)
-	handler := ProvidePersonHandler(server, useCases, middlewares)
-	userRepository, err := ProvideUserRepository(repository)
-	if err != nil {
-		return nil, err
-	}
-	userUseCases := ProvideUserUseCases(userRepository)
-	userHandler := ProvideUserHandler(server, userUseCases, middlewares)
-	smtpService, err := ProvideNotificationSmtpService(service)
-	if err != nil {
-		return nil, err
-	}
-	notificationUseCases := ProvideNotificationUseCases(smtpService)
-	notificationHandler := ProvideNotificationHandler(server, notificationUseCases, middlewares)
-	cropRepository, err := ProvideCropRepository(repository)
-	if err != nil {
-		return nil, err
-	}
-	cropUseCases := ProvideCropUseCases(cropRepository)
-	cropHandler := ProvideCropHandler(server, cropUseCases, middlewares)
-	customerRepository, err := ProvideCustomerRepository(repository)
-	if err != nil {
-		return nil, err
-	}
-	customerUseCases := ProvideCustomerUseCases(customerRepository)
-	customerHandler := ProvideCustomerHandler(server, customerUseCases, middlewares)
-	managerRepository, err := ProvideManagerRepository(repository)
-	if err != nil {
-		return nil, err
-	}
-	managerUseCases := ProvideManagerUseCases(managerRepository)
-	managerHandler := ProvideManagerHandler(server, managerUseCases, middlewares)
-	fieldRepository, err := ProvideFieldRepository(repository)
-	if err != nil {
-		return nil, err
-	}
-	lotRepository, err := ProvideLotRepository(repository)
-	if err != nil {
-		return nil, err
-	}
-	lotUseCases := ProvideLotUseCases(lotRepository, cropUseCases)
-	fieldUseCases := ProvideFieldUseCases(fieldRepository, lotUseCases)
-	fieldHandler := ProvideFieldHandler(server, fieldUseCases, middlewares)
-	investorRepository, err := ProvideInvestorRepository(repository)
-	if err != nil {
-		return nil, err
-	}
-	investorUseCases := ProvideInvestorUseCases(investorRepository)
-	investorHandler := ProvideInvestorHandler(server, investorUseCases, middlewares)
-	lotHandler := ProvideLotHandler(server, lotUseCases, middlewares)
-	projectRepository, err := ProvideProjectRepository(repository)
-	if err != nil {
-		return nil, err
-	}
-	projectUseCases := ProvideProjectUseCases(projectRepository, customerUseCases, managerUseCases, investorUseCases, fieldUseCases, lotUseCases)
-	projectHandler := ProvideProjectHandler(server, projectUseCases, middlewares)
+	laborXLSXEnginePort := ProvideLaborXLSXEnginePort(laborExcelService)
+	laborExporterAdapterPort := ProvideLaborExporterPort(laborXLSXEnginePort)
+	laborUseCases := ProvideLaborUseCases(laborRepositoryPort, laborExporterAdapterPort)
+	laborUseCasesPort := ProvideLaborUseCasesPort(laborUseCases)
+	laborConfigAPIPort := ProvideLaborConfigAPI(config)
+	laborMiddlewaresEnginePort := ProvideLaborMiddlewaresEnginePort(middlewares)
+	laborHandler := ProvideLaborHandler(laborGinEnginePort, laborUseCasesPort, laborConfigAPIPort, laborMiddlewaresEnginePort, projectUseCasesPort)
+	invoiceGinEnginePort := ProvideInvoiceGinEnginePort(server)
+	invoiceGormEnginePort := ProvideInvoiceGormEnginePort(repository)
+	invoiceRepository := ProvideInvoiceRepository(invoiceGormEnginePort)
+	invoiceRepositoryPort := ProvideInvoiceRepositoryPort(invoiceRepository)
+	invoiceUseCases := ProvideInvoiceUseCases(invoiceRepositoryPort)
+	invoiceUseCasePort := ProvideInvoiceUseCasePort(invoiceUseCases)
+	invoiceConfigAPIPort := ProvideInvoiceConfigAPI(config)
+	invoiceMiddlewaresEnginePort := ProvideInvoiceMiddlewaresEnginePort(middlewares)
+	invoiceHandler := ProvideInvoiceHandler(invoiceGinEnginePort, invoiceUseCasePort, invoiceConfigAPIPort, invoiceMiddlewaresEnginePort)
+	commercializationGinEnginePort := ProvideCommercializationGinEnginePort(server)
+	commercializationGormEnginePort := ProvideCommercializationGormEnginePort(repository)
+	commercializationRepository := ProvideCommercializationRepository(commercializationGormEnginePort)
+	commercializationRepositoryPort := ProvideCommercializationRepositoryPort(commercializationRepository)
+	commercializationUseCases := ProvideCommercializationUseCases(commercializationRepositoryPort)
+	commercializationUseCasePort := ProvideCommercializationUseCasePort(commercializationUseCases)
+	commercializationConfigAPIPort := ProvideCommercializationConfigAPI(config)
+	commercializationMiddlewaresEnginePort := ProvideCommercializationMiddlewaresEnginePort(middlewares)
+	commercializationHandler := ProvideCommercializationHandler(commercializationGinEnginePort, commercializationUseCasePort, commercializationConfigAPIPort, commercializationMiddlewaresEnginePort)
+	stockGinEnginePort := ProvideStockGinEnginePort(server)
+	stockXLSXEnginePort := ProvideStockXLSXEnginePort(supplyMovementExcelService)
+	stockExporterAdapterPort := ProvideStockExporterPort(stockXLSXEnginePort)
+	stockUseCases := ProvideStockUseCases(stockRepositoryPort, stockExporterAdapterPort)
+	stockUseCasesPort := ProvideStockUseCasesPort(stockUseCases)
+	stockConfigAPIPort := ProvideStockConfigAPI(config)
+	stockMiddlewaresEnginePort := ProvideStockMiddlewaresEnginePort(middlewares)
+	stockHandler := ProvideStockHandler(stockGinEnginePort, stockUseCasesPort, stockConfigAPIPort, stockMiddlewaresEnginePort, projectUseCasesPort)
+	supply_movementGinEnginePort := ProvideSupplyMovementGinEnginePort(server)
+	supply_movementGormEnginePort := ProvideSupplyMovementGormEnginePort(repository)
+	supply_movementRepository := ProvideSupplyMovementRepository(supply_movementGormEnginePort)
+	supply_movementXLSXEnginePort := ProvideSupplyMovementXLSXEnginePort(supplyMovementExcelService)
+	supply_movementExporterAdapterPort := ProvideSupplyMovementExporterPort(supply_movementXLSXEnginePort)
+	supply_movementUseCases := ProvideSupplyMovementUseCases(stockUseCases, supply_movementRepository, supply_movementExporterAdapterPort)
+	supply_movementUseCasesPort := ProvideSupplyMovementUseCasesPort(supply_movementUseCases)
+	supply_movementConfigAPIPort := ProvideSupplyMovementConfigAPI(config)
+	supply_movementMiddlewaresEnginePort := ProvideSupplyMovementMiddlewaresEnginePort(middlewares)
+	supply_movementHandler := ProvideSupplyMovementHandler(supply_movementGinEnginePort, supply_movementUseCasesPort, supply_movementConfigAPIPort, supply_movementMiddlewaresEnginePort, projectUseCasesPort)
 	dependencies := &Dependencies{
-		ConfigLoader:        loader,
-		GinServer:           server,
-		GormRepository:      repository,
-		PostgresRepository:  pkgpostgresqlRepository,
-		SmtpService:         service,
-		Middlewares:         middlewares,
-		PersonHandler:       handler,
-		UserHandler:         userHandler,
-		NotificationHandler: notificationHandler,
-		CropHandler:         cropHandler,
-		CustomerHandler:     customerHandler,
-		ManagerHandler:      managerHandler,
-		FieldHandler:        fieldHandler,
-		InvestorHandler:     investorHandler,
-		LotHandler:          lotHandler,
-		ProjectHandler:      projectHandler,
-		PersonUseCases:      useCases,
-		UserUseCases:        userUseCases,
-		CropUseCases:        cropUseCases,
-		CustomerUseCases:    customerUseCases,
-		FieldUseCases:       fieldUseCases,
-		InvestorUseCases:    investorUseCases,
-		LotUseCases:         lotUseCases,
-		ProjectUseCases:     projectUseCases,
+		Config:                   config,
+		GinEngine:                server,
+		GormRepo:                 repository,
+		Middlewares:              middlewares,
+		WordsSuggester:           pkgsuggesterWordsSuggester,
+		CustomerHandler:          handler,
+		CampaignHandler:          campaignHandler,
+		DashboardHandler:         dashboardHandler,
+		DataIntegrityHandler:     data_integrityHandler,
+		InvestorHandler:          investorHandler,
+		CropHandler:              cropHandler,
+		LotHandler:               lotHandler,
+		FieldHandler:             fieldHandler,
+		ManagerHandler:           managerHandler,
+		ProjectHandler:           projectHandler,
+		ReportHandler:            reportHandler,
+		LeaseTypeHandler:         leasetypeHandler,
+		SupplyHandler:            supplyHandler,
+		CategoryHandler:          categoryHandler,
+		AppParametersHandler:     app_parametersHandler,
+		ClassTypeHandler:         classtypeHandler,
+		DollarHandler:            dollarHandler,
+		WorkorderHandler:         workorderHandler,
+		LaborHandler:             laborHandler,
+		InvoiceHandler:           invoiceHandler,
+		CommercializationHandler: commercializationHandler,
+		StockHandler:             stockHandler,
+		SupplyMovement:           supply_movementHandler,
 	}
 	return dependencies, nil
 }
@@ -148,31 +333,32 @@ func Initialize() (*Dependencies, error) {
 // wire.go:
 
 type Dependencies struct {
-	ConfigLoader       config.Loader
-	GinServer          pkggin.Server
-	GormRepository     pkggorm.Repository
-	PostgresRepository pkgpostgresql.Repository
-	SmtpService        pkgsmtp.Service
-
-	Middlewares *pkgmwr.Middlewares
-
-	PersonHandler       *person.Handler
-	UserHandler         *user.Handler
-	NotificationHandler *notification.Handler
-	CropHandler         *crop.Handler
-	CustomerHandler     *customer.Handler
-	ManagerHandler      *manager.Handler
-	FieldHandler        *field.Handler
-	InvestorHandler     *investor.Handler
-	LotHandler          *lot.Handler
-	ProjectHandler      *project.Handler
-
-	PersonUseCases   person.UseCases
-	UserUseCases     user.UseCases
-	CropUseCases     crop.UseCases
-	CustomerUseCases customer.UseCases
-	FieldUseCases    field.UseCases
-	InvestorUseCases investor.UseCases
-	LotUseCases      lot.UseCases
-	ProjectUseCases  project.UseCases
+	Config                   *config.Config
+	GinEngine                *pkggin.Server
+	GormRepo                 *pkggorm.Repository
+	Middlewares              *pkgmwr.Middlewares
+	WordsSuggester           *pkgsuggester.WordsSuggester
+	CustomerHandler          *customer.Handler
+	CampaignHandler          *campaign.Handler
+	DashboardHandler         *dashboard.Handler
+	DataIntegrityHandler     *data_integrity.Handler
+	InvestorHandler          *investor.Handler
+	CropHandler              *crop.Handler
+	LotHandler               *lot.Handler
+	FieldHandler             *field.Handler
+	ManagerHandler           *manager.Handler
+	ProjectHandler           *project.Handler
+	ReportHandler            *report.ReportHandler
+	LeaseTypeHandler         *leasetype.Handler
+	SupplyHandler            *supply.Handler
+	CategoryHandler          *category.Handler
+	AppParametersHandler     *app_parameters.Handler
+	ClassTypeHandler         *classtype.Handler
+	DollarHandler            *dollar.Handler
+	WorkorderHandler         *workorder.Handler
+	LaborHandler             *labor.Handler
+	InvoiceHandler           *invoice.Handler
+	CommercializationHandler *commercialization.Handler
+	StockHandler             *stock.Handler
+	SupplyMovement           *supply_movement.Handler
 }

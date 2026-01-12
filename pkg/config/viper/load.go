@@ -11,15 +11,15 @@ import (
 	pkgutils "github.com/alphacodinggroup/ponti-backend/pkg/utils"
 )
 
-// Load loads multiple configuration files using Viper.
-// It merges all found configuration files into Viper's configuration.
-// Returns an error if no files are provided, no files are found, or all loading attempts fail.
+// Load carga múltiples archivos de configuración usando Viper.
+// Combina todos los archivos de configuración encontrados en la configuración de Viper.
+// Retorna un error si no se proporcionan archivos, no se encuentran archivos, o fallan todos los intentos de carga.
 func LoadConfig(filePaths ...string) error {
 	if len(filePaths) == 0 {
 		return errors.New("no file paths provided")
 	}
 
-	// Find and filter existing files using FilesFinder
+	// Encontrar y filtrar archivos existentes usando FilesFinder
 	foundFiles, err := pkgutils.FilesFinder(filePaths...)
 	if err != nil {
 		return fmt.Errorf("fatal error: failed to find configuration files: %w", err)
@@ -29,7 +29,7 @@ func LoadConfig(filePaths ...string) error {
 		return errors.New("no configuration files found to load")
 	}
 
-	// Configure Viper to read environment variables
+	// Configurar Viper para leer variables de entorno
 	configureViper()
 
 	var successfullyLoaded bool
@@ -44,12 +44,12 @@ func LoadConfig(filePaths ...string) error {
 		fmt.Printf("Successfully loaded configuration file: %s\n", configFilePath)
 	}
 
-	// If no file was successfully loaded, return an error
+	// Si ningún archivo se cargó exitosamente, retornar error
 	if !successfullyLoaded {
 		return fmt.Errorf("failed to load any configuration files: %v", loadErrors)
 	}
 
-	// If some files failed to load, print the errors
+	// Si algunos archivos fallaron al cargar, imprimir los errores
 	if len(loadErrors) > 0 {
 		fmt.Printf("Some configuration files failed to load:\n%s\n", strings.Join(loadErrors, "\n"))
 	}
@@ -57,14 +57,14 @@ func LoadConfig(filePaths ...string) error {
 	return nil
 }
 
-// configureViper sets up Viper to load environment variables
+// configureViper configura Viper para cargar variables de entorno
 func configureViper() {
 	viper.SetEnvPrefix("")
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 }
 
-// loadViperConfig loads and merges a configuration file into Viper
+// loadViperConfig carga y combina un archivo de configuración en Viper
 func loadViperConfig(configFilePath string) error {
 	fileNameWithoutExt, fileExtension, err := pkgutils.FileNameAndExtension(configFilePath)
 	if err != nil {
@@ -77,7 +77,7 @@ func loadViperConfig(configFilePath string) error {
 	dir := filepath.Dir(configFilePath)
 	viper.AddConfigPath(dir)
 
-	// Use MergeInConfig to merge multiple configurations
+	// Usar MergeInConfig para combinar múltiples configuraciones
 	if err := viper.MergeInConfig(); err != nil {
 		return fmt.Errorf("error reading config: %w", err)
 	}

@@ -6,31 +6,39 @@ import (
 	domain "github.com/alphacodinggroup/ponti-backend/projects/ponti-api/internal/manager/usecases/domain"
 )
 
-type useCases struct {
-	repo Repository
+type RepositoryPort interface {
+	CreateManager(context.Context, *domain.Manager) (int64, error)
+	ListManagers(context.Context) ([]domain.Manager, error)
+	GetManager(context.Context, int64) (*domain.Manager, error)
+	UpdateManager(context.Context, *domain.Manager) error
+	DeleteManager(context.Context, int64) error
+}
+
+type UseCases struct {
+	repo RepositoryPort
 }
 
 // NewUseCases crea una instancia de los casos de uso para Manager.
-func NewUseCases(repo Repository) UseCases {
-	return &useCases{repo: repo}
+func NewUseCases(repo RepositoryPort) *UseCases {
+	return &UseCases{repo: repo}
 }
 
-func (u *useCases) CreateManager(ctx context.Context, c *domain.Manager) (int64, error) {
+func (u *UseCases) CreateManager(ctx context.Context, c *domain.Manager) (int64, error) {
 	return u.repo.CreateManager(ctx, c)
 }
 
-func (u *useCases) ListManagers(ctx context.Context) ([]domain.Manager, error) {
+func (u *UseCases) ListManagers(ctx context.Context) ([]domain.Manager, error) {
 	return u.repo.ListManagers(ctx)
 }
 
-func (u *useCases) GetManager(ctx context.Context, id int64) (*domain.Manager, error) {
+func (u *UseCases) GetManager(ctx context.Context, id int64) (*domain.Manager, error) {
 	return u.repo.GetManager(ctx, id)
 }
 
-func (u *useCases) UpdateManager(ctx context.Context, c *domain.Manager) error {
+func (u *UseCases) UpdateManager(ctx context.Context, c *domain.Manager) error {
 	return u.repo.UpdateManager(ctx, c)
 }
 
-func (u *useCases) DeleteManager(ctx context.Context, id int64) error {
+func (u *UseCases) DeleteManager(ctx context.Context, id int64) error {
 	return u.repo.DeleteManager(ctx, id)
 }

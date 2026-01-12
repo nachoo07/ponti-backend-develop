@@ -2,25 +2,32 @@ package pkggin
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
-// con sigleton
 var (
-	instance  Server
+	instance  *Server
 	once      sync.Once
 	initError error
 )
 
-type server struct {
-	router *gin.Engine
-	config Config
+type ConfigPort interface {
+	GetRouterPort() string
+	Validate() error
 }
 
-func newServer(config Config) (Server, error) {
+type Server struct {
+	router *gin.Engine
+	config ConfigPort
+}
+
+func newServer(config ConfigPort) (*Server, error) {
 	once.Do(func() {
 		err := config.Validate()
 		if err != nil {
@@ -29,7 +36,19 @@ func newServer(config Config) (Server, error) {
 		}
 
 		r := gin.New()
-		instance = &server{
+
+		r.GET("/healthz", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"status":    "healthy",
+				"timestamp": time.Now(),
+			})
+		})
+
+		r.GET("/ping", func(c *gin.Context) {
+			c.JSON(200, gin.H{"message": "pong"})
+		})
+
+		instance = &Server{
 			config: config,
 			router: r,
 		}
@@ -37,52 +56,57 @@ func newServer(config Config) (Server, error) {
 	return instance, initError
 }
 
-// sin singleton
-// type server struct {
-// 	router *gin.Engine
-// 	config Config
-// }
-
-// func newServer(cfg Config) (Server, error) {
-// 	r := gin.Default()
-// 	return &server{
-// 		router: r,
-// 		config: cfg,
-// 	}, nil
-// }
-
-func newTestServer() (Server, error) {
+func newTestServer() (*Server, error) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 
-	testConfig := &config{
+	testConfig := &Config{
 		routerPort: "8080",
 		apiVersion: "v1",
 	}
 
-	return &server{
+	return &Server{
 		router: r,
 		config: testConfig,
 	}, nil
 }
 
-// RunServer lanza el servidor en el puerto configurado.
-func (s *server) RunServer(ctx context.Context) error {
-	// Ejemplo de "Run" bloqueante:
-	return s.router.Run(":" + s.config.GetRouterPort())
+func (s *Server) RunServer(ctx context.Context) error {
+	httpServer := &http.Server{
+		Addr:    ":" + s.config.GetRouterPort(),
+		Handler: s.router,
+	}
+
+	errChan := make(chan error, 1)
+
+	go func() {
+		errChan <- httpServer.ListenAndServe()
+	}()
+
+	select {
+	case <-ctx.Done():
+		log.Println("Context canceled. Shutting down HTTP Server...")
+
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			return fmt.Errorf("HTTP Server shutdown failed: %w", err)
+		}
+		return nil
+
+	case err := <-errChan:
+		if err != nil && err != http.ErrServerClosed {
+			return fmt.Errorf("HTTP Server error: %w", err)
+		}
+		return nil
+	}
 }
 
-// GetRouter expone el router para poder añadir rutas, middlewares, etc.
-func (s *server) GetRouter() *gin.Engine {
+func (s *Server) GetRouter() *gin.Engine {
 	return s.router
 }
 
-// GetApiVersion retorna la versión configurada.
-func (s *server) GetApiVersion() string {
-	return s.config.GetApiVersion()
-}
-
-// WrapH sirve para anidar un http.Handler dentro de Gin.
-func (s *server) WrapH(h http.Handler) gin.HandlerFunc {
+func (s *Server) WrapH(h http.Handler) gin.HandlerFunc {
 	return gin.WrapH(h)
 }

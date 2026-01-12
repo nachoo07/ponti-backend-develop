@@ -18,6 +18,7 @@ type Repository interface {
 type Config interface {
 	Validate() error
 	DNS() string
+	GetSSLMode() string
 	GetHost() string
 	GetUser() string
 	GetPassword() string

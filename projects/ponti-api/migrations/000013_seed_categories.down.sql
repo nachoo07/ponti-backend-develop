@@ -1,0 +1,1 @@
+DELETE FROM categories WHERE name IN ('Semilla', 'Coadyuvantes', 'Curasemillas', 'Herbicidas', 'Insecticidas', 'Fungicidas', 'Otros Insumos', 'Fertilizantes', 'Siembra', 'Pulverización', 'Otras Labores', 'Riego', 'Cosecha');

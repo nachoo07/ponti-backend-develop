@@ -1,0 +1,1 @@
+DROP VIEW IF EXISTS labor_metrics_view;

@@ -1,9 +1,11 @@
 package pkgmwr
 
-import "github.com/gin-gonic/gin"
-
-type Middlewares struct {
-	Global    []gin.HandlerFunc
-	Validated []gin.HandlerFunc
-	Protected []gin.HandlerFunc
-}
+// Centraliza todas las constantes de headers HTTP, contexto y claves de entorno.
+const (
+	HeaderAPIKey       = "X-API-KEY"
+	HeaderUserID       = "X-USER-ID"
+	ContextUserID      = "userID"
+	ContextAPIKey      = "apiKey"
+	EnvAPIKey          = "X_API_KEY"
+	ContextCredentials = "credentials"
+)

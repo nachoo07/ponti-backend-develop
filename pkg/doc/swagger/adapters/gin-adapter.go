@@ -8,9 +8,9 @@ import (
 	pkgswagger "github.com/alphacodinggroup/ponti-backend/pkg/doc/swagger"
 )
 
-// SetupSwagger configura Swagger en un router Gin
+// SetupSwagger configura Swagger UI para Gin.
 func SetupSwagger(engine *gin.Engine, service pkgswagger.Service) error {
-	// Primero configura las rutas base usando el servicio Swagger
+	// Configurar rutas para Swagger
 	addRoute := func(config pkgswagger.HandlerConfig) {
 		handler := gin.WrapH(config.Handler)
 		engine.Handle(config.Method, config.Path, handler)
@@ -20,7 +20,7 @@ func SetupSwagger(engine *gin.Engine, service pkgswagger.Service) error {
 		return err
 	}
 
-	// Usa una ruta más específica
+	// Use a more specific route
 	engine.GET("/api-docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler,
 		ginSwagger.URL("/api-docs/doc.json"),
 		ginSwagger.DefaultModelsExpandDepth(-1),
