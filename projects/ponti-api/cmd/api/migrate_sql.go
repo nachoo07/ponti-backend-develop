@@ -49,7 +49,7 @@ func runMigrationsWithInstance(sqlDB *sql.DB, dbConfig config.DB, migConfig conf
 	return nil
 }
 
-func buildMigrateDatabaseURL(cfg config.DB) string {
+/*func buildMigrateDatabaseURL(cfg config.DB) string {
 	user := strings.TrimSpace(cfg.User)
 	pass := strings.TrimSpace(cfg.Password)
 	host := strings.TrimSpace(cfg.Host)
@@ -70,4 +70,49 @@ func buildMigrateDatabaseURL(cfg config.DB) string {
 	}
 
 	return u.String()
+}*/
+
+
+func buildMigrateDatabaseURL(cfg config.DB) string {
+    user := strings.TrimSpace(cfg.User)
+    pass := strings.TrimSpace(cfg.Password)
+    host := strings.TrimSpace(cfg.Host)
+    name := strings.TrimSpace(cfg.Name)
+    ssl := strings.TrimSpace(cfg.SSLMode)
+
+    // ✅ Detectar si es un socket de Cloud SQL
+    if strings.HasPrefix(host, "/") {
+        // Socket de Cloud SQL: usar localhost con parámetro host
+        u := &url.URL{
+            Scheme: "postgres",
+            User:   url.UserPassword(user, pass),
+            Host:   "localhost",
+            Path:   "/" + name,
+        }
+
+        q := url.Values{}
+        q.Set("host", host)
+        if ssl != "" {
+            q.Set("sslmode", ssl)
+        }
+        u.RawQuery = q.Encode()
+
+        return u.String()
+    }
+
+    // TCP tradicional (local/remoto)
+    u := &url.URL{
+        Scheme: "postgres",
+        User:   url.UserPassword(user, pass),
+        Host:   fmt.Sprintf("%s:%d", host, cfg.Port),
+        Path:   "/" + name,
+    }
+
+    if ssl != "" {
+        q := url.Values{}
+        q.Set("sslmode", ssl)
+        u.RawQuery = q.Encode()
+    }
+
+    return u.String()
 }

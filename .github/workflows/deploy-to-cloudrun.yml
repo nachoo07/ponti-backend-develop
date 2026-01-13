@@ -85,8 +85,8 @@ jobs:
               DB_PASSWORD=${{ secrets.DB_PASSWORD }},\
               INSTANCE_CONNECTION_NAME=${{ secrets.DB_INSTANCE_NAME }},\
               API_VERSION=v1,\
-              X_API_KEY=f9eac0c8d3dbc828c9d8730446d902483917c465fa07889d87dc66934cc9b9cb,\
-              DB_HOST=/cloudsql/${{ secrets.DB_INSTANCE_NAME }},\
-              DB_SSL_MODE=disable,\
+              X_API_KEY=f9eac0c8d3dbc828c9d8730446d902483917c465fa07889d87dc66934cc9b9cb,
+              DB_HOST=/cloudsql/${{ secrets.DB_INSTANCE_NAME }},
+              DB_SSL_MODE=disable,
               SSL_MODE=disable" \
             --quiet
