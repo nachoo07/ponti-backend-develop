@@ -82,16 +82,22 @@ func buildMigrateDatabaseURL(cfg config.DB) string {
 
     // ✅ Detectar si es un socket de Cloud SQL
     if strings.HasPrefix(host, "/") {
-        // Socket de Cloud SQL: usar localhost con parámetro host
+        // Socket de Cloud SQL: 
+        // CAMBIO CLAVE: Usamos "" (vacío) en vez de "localhost"
+        // para forzar a lib/pq a usar el parámetro host del query.
         u := &url.URL{
             Scheme: "postgres",
             User:   url.UserPassword(user, pass),
-            Host:   "localhost",
-            Path:   "/" + name,
+            Host:   "", // <--- AQUÍ ESTÁ EL TRUCO (Antes decía "localhost")
+            Path:   name, // Sin barra inicial si Host está vacío, o url.URL lo maneja
         }
 
+        // url.URL a veces necesita ayuda con el path si el host es vacío
+        // Para asegurar que quede "postgres://user:pass@/dbname", forzamos el path:
+        u.Path = "/" + name
+
         q := url.Values{}
-        q.Set("host", host)
+        q.Set("host", host) // Esto inyecta /cloudsql/...
         if ssl != "" {
             q.Set("sslmode", ssl)
         }
